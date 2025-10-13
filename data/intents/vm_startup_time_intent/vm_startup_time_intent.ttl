@@ -1,0 +1,40 @@
+@prefix icm:  <http://tio.models.tmforum.org/tio/v3.6.0/IntentCommonModel/> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix log:  <http://www.w3.org/2000/10/swap/log#> .
+@prefix set:  <http://www.w3.org/2000/10/swap/set#> .
+@prefix quan: <http://www.w3.org/2000/10/swap/quantities#> .
+@prefix iexp: <http://intendproject.eu/iexplain#> .
+
+iexp:I2 a icm:Intent ;
+    dct:description "Reduce VM instance startup time in OpenStack Nova"@en ;
+    log:allOf ( iexp:DE2 iexp:RE2 ) ;
+.
+
+iexp:DE2 a icm:DeliveryExpectation ;
+    icm:target iexp:nova-compute-service ;
+    dct:description "Ensure VM instance provisioning takes less than 30 seconds"@en ;
+    log:allOf ( iexp:C2 iexp:CX2 ) ;
+.
+
+iexp:C2 a icm:Condition ;
+    dct:description "VM startup time must be below threshold"@en ;
+    set:forAll (
+    _:X
+    [ icm:valuesOfTargetProperty ( iexp:VMStartupTime ) ]
+    quan:smaller ( _:X [ rdf:value "30"^^xsd:decimal ; quan:unit "s" ] )
+    ) ;
+.
+
+iexp:CX2 a icm:Context ;
+    dct:description "Applied to all VM instance types"@en ;
+    iexp:appliesToService "nova-compute" ;
+    iexp:instanceFlavor "all" ;
+.
+
+iexp:RE2 a icm:ReportingExpectation ;
+    icm:target iexp:monitoring-system ;
+    dct:description "Report if VM startup time expectation is met with metrics trends"@en ;
+.

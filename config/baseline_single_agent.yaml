@@ -1,0 +1,44 @@
+# config/baseline_single.yaml
+experiment:
+  name: "baseline_single_agent"
+  description: "Single agent baseline"
+  timestamp: null  # Auto-generated if null
+
+llm:
+  provider: "anthropic"
+  model: "claude-sonnet-4-20250514"
+  temperature: 0.0  # 0.0 for reproducibility, higher for creativity
+
+workflow:
+  type: "single_agent"
+  agent_sequence: ["main"]  # Order of agent execution
+  max_iterations: 10  # Maximum iterations for multi-agent workflows
+
+agents:
+  main:
+    system_prompt: |
+      You are an expert log analyst. Analyze system logs to:
+      1. Identify key events and state changes
+      2. Map events to intent expectations if intent is provided
+      3. Determine if system is compliant or degraded
+      4. Provide clear, factual explanations
+
+      Be concise and evidence-based. Only cite information from logs.
+    tools:
+      - read_file
+      - search_logs
+    max_tokens: 4096
+    temperature: null  # Uses llm.temperature if null, can override per-agent
+
+data:
+  log_source: "data/logs/openstack/nova-compute.log"
+  intent_source: null  # "data/intents/synthetic_intent_1.json"
+  index_method: "simple"  # or "vector"
+  chunk_size: 1000
+
+evaluation:
+  metrics:
+    - accuracy
+    - completeness
+    - coherence
+  output_dir: "experiments/results/baseline_single/"

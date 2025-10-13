@@ -1,0 +1,36 @@
+@prefix icm:  <http://tio.models.tmforum.org/tio/v3.6.0/IntentCommonModel/> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix geo:  <http://www.opengis.net/ont/geosparql#> .
+@prefix intendproject: <http://intendproject.eu/> .
+@prefix log: <http://example.com/log#> .
+@prefix set: <http://example.com/set#> .
+@prefix quan: <http://example.com/quan#> .
+
+intendproject:I1 a icm:Intent ;
+    log:allOf ( intendproject:DE1 intendproject:RE1 ) ;
+.
+
+intendproject:DE1 a icm:DeliveryExpectation ;
+    icm:target intendproject:OpenStackVMProvision ;
+    dct:description "Optimize the VM provisioning process in our OpenStack environment to reduce virtual machine startup times to under 30 seconds, thereby accelerating our continuous integration pipeline."@en ;
+    log:allOf ( intendproject:C1 ) ;
+.
+
+intendproject:C1 a icm:Condition ;
+    dct:description "The virtual machine startup time must be less than 30 seconds to eliminate delays in the continuous integration pipeline."@en ;
+    set:forAll ( _:X
+        [ icm:valuesOfTargetProperty ( intendproject:VMStartupTime ) ]
+        quan:smaller ( _:X [ rdf:value "30"^^xsd:decimal ;
+                              quan:unit "s"
+                            ]
+        )
+    ) ;
+.
+
+intendproject:RE1 a icm:ReportingExpectation ;
+    icm:target intendproject:OpenStackVMProvision ;
+    dct:description "Report on the VM provisioning process with metrics that verify the startup time is maintained under 30 seconds."@en ;
+.

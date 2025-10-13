@@ -1,0 +1,41 @@
+@prefix icm:  <http://tio.models.tmforum.org/tio/v3.6.0/IntentCommonModel/> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix log:  <http://www.w3.org/2000/10/swap/log#> .
+@prefix set:  <http://www.w3.org/2000/10/swap/set#> .
+@prefix quan: <http://www.w3.org/2000/10/swap/quantities#> .
+@prefix iexp: <http://intendproject.eu/iexplain#> .
+
+iexp:I1 a icm:Intent ;
+    dct:description "Improve API response time for OpenStack Nova service"@en ;
+    log:allOf ( iexp:DE1 iexp:RE1 ) ;
+.
+
+iexp:DE1 a icm:DeliveryExpectation ;
+    icm:target iexp:nova-api-service ;
+    dct:description "Ensure Nova API response time is consistently under 250ms"@en ;
+    log:allOf ( iexp:C1 iexp:CX1 ) ;
+.
+
+iexp:C1 a icm:Condition ;
+    dct:description "API response time must be below threshold"@en ;
+    set:forAll (
+    _:X
+    [ icm:valuesOfTargetProperty ( iexp:APIResponseTime ) ]
+    quan:smaller ( _:X [ rdf:value "250"^^xsd:decimal ; quan:unit "ms" ] )
+    ) ;
+.
+
+iexp:CX1 a icm:Context ;
+    dct:description "Applied to Nova API GET /servers/detail endpoint"@en ;
+    iexp:appliesToService "nova-api" ;
+    iexp:appliesToEndpoint "/v2/servers/detail" ;
+    iexp:httpMethod "GET" ;
+.
+
+iexp:RE1 a icm:ReportingExpectation ;
+    icm:target iexp:monitoring-system ;
+    dct:description "Report if Nova API response time expectation is met with metrics trends"@en ;
+.
