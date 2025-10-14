@@ -33,7 +33,8 @@ agents:
 
 data:
   log_source: "data/logs/openstack/nova-compute.log"
-  intent_source: null  # "data/intents/synthetic_intent_1.json"
+  intent_source: "data/intents/nova_api_latency_intent/nova_api_latency_intent.ttl"
+  # intent_source: null  # "data/intents/synthetic_intent_1.json"
   index_method: "simple"  # or "vector"
   chunk_size: 1000
 
