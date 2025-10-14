@@ -1,0 +1,146 @@
+{
+  "scenario_id": "001",
+  "scenario_name": "VM Lifecycle - Normal Spawn and Termination",
+  "log_source": "data/logs/openstack-full/OpenStack_2k.log",
+  "line_range": [1, 50],
+  "timestamp_range": {
+    "start": "2017-05-16 00:00:00.008",
+    "end": "2017-05-16 00:00:17.861"
+  },
+  "description": "A complete VM lifecycle showing spawn, operation, and termination of instance b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+
+  "key_events": [
+    {
+      "event_type": "vm_started",
+      "timestamp": "2017-05-16 00:00:04.500",
+      "line_number": 7,
+      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+      "description": "VM lifecycle event: Started",
+      "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:04.500 2931 INFO nova.compute.manager [req-3ea4052c-895d-4b64-9e2d-04d64c4d94ab - - - - -] [instance: b9000564-fe1a-409b-b8cc-1e88b294cd1d] VM Started (Lifecycle Event)"
+    },
+    {
+      "event_type": "vm_paused",
+      "timestamp": "2017-05-16 00:00:04.562",
+      "line_number": 8,
+      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+      "description": "VM paused during spawn process",
+      "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:04.562 2931 INFO nova.compute.manager [req-3ea4052c-895d-4b64-9e2d-04d64c4d94ab - - - - -] [instance: b9000564-fe1a-409b-b8cc-1e88b294cd1d] VM Paused (Lifecycle Event)"
+    },
+    {
+      "event_type": "network_vif_plugged",
+      "timestamp": "2017-05-16 00:00:10.279",
+      "line_number": 23,
+      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+      "description": "Network interface plugged for instance",
+      "evidence": "nova-api.log.1.2017-05-16_13:53:08 2017-05-16 00:00:10.279 25743 INFO nova.api.openstack.compute.server_external_events [req-ab451068-9756-4ad9-9d18-5ceaa6424627 f7b8d1f1d4d44643b07fa10ca7d021fb e9746973ac574c6b8a9e8857f56a7608 - - -] Creating event network-vif-plugged:e3871ffd-5cd5-4287-bddd-3529f7b59515 for instance b9000564-fe1a-409b-b8cc-1e88b294cd1d"
+    },
+    {
+      "event_type": "vm_resumed",
+      "timestamp": "2017-05-16 00:00:10.296",
+      "line_number": 25,
+      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+      "description": "VM resumed after network setup",
+      "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:10.296 2931 INFO nova.compute.manager [req-3ea4052c-895d-4b64-9e2d-04d64c4d94ab - - - - -] [instance: b9000564-fe1a-409b-b8cc-1e88b294cd1d] VM Resumed (Lifecycle Event)"
+    },
+    {
+      "event_type": "instance_spawned",
+      "timestamp": "2017-05-16 00:00:10.302",
+      "line_number": 26,
+      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+      "description": "Instance successfully spawned on hypervisor",
+      "metrics": {
+        "hypervisor_spawn_time_seconds": 19.05
+      },
+      "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:10.302 2931 INFO nova.virt.libvirt.driver [-] [instance: b9000564-fe1a-409b-b8cc-1e88b294cd1d] Instance spawned successfully."
+    },
+    {
+      "event_type": "instance_build_complete",
+      "timestamp": "2017-05-16 00:00:10.470",
+      "line_number": 31,
+      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+      "description": "Complete instance build time",
+      "metrics": {
+        "total_build_time_seconds": 19.84
+      },
+      "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:10.470 2931 INFO nova.compute.manager [req-8e64797b-fb99-4c8a-87e5-9a8de673412f 113d3a99c3da401fbd62cc2caa5b96d2 54fadb412c4e40cdbaed9335e4c35a9e - - -] [instance: b9000564-fe1a-409b-b8cc-1e88b294cd1d] Took 19.84 seconds to build instance."
+    },
+    {
+      "event_type": "instance_delete_request",
+      "timestamp": "2017-05-16 00:00:17.504",
+      "line_number": 45,
+      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+      "description": "DELETE API request received",
+      "evidence": "nova-api.log.1.2017-05-16_13:53:08 2017-05-16 00:00:17.504 25746 INFO nova.osapi_compute.wsgi.server [req-c53a921a-16c7-422e-8c9d-c922a720d047 113d3a99c3da401fbd62cc2caa5b96d2 54fadb412c4e40cdbaed9335e4c35a9e - - -] 10.11.10.1 \"DELETE /v2/54fadb412c4e40cdbaed9335e4c35a9e/servers/b9000564-fe1a-409b-b8cc-1e88b294cd1d HTTP/1.1\" status: 204 len: 203 time: 0.2534380"
+    },
+    {
+      "event_type": "instance_terminated",
+      "timestamp": "2017-05-16 00:00:17.541",
+      "line_number": 47,
+      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+      "description": "Instance termination initiated",
+      "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:17.541 2931 INFO nova.compute.manager [req-c53a921a-16c7-422e-8c9d-c922a720d047 113d3a99c3da401fbd62cc2caa5b96d2 54fadb412c4e40cdbaed9335e4c35a9e - - -] [instance: b9000564-fe1a-409b-b8cc-1e88b294cd1d] Terminating instance"
+    },
+    {
+      "event_type": "instance_destroyed",
+      "timestamp": "2017-05-16 00:00:17.754",
+      "line_number": 48,
+      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
+      "description": "Instance successfully destroyed",
+      "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:17.754 2931 INFO nova.virt.libvirt.driver [-] [instance: b9000564-fe1a-409b-b8cc-1e88b294cd1d] Instance destroyed successfully."
+    }
+  ],
+
+  "timeline": [
+    {"time": "00:00:04.500", "event": "VM Started"},
+    {"time": "00:00:04.562", "event": "VM Paused (spawning)"},
+    {"time": "00:00:10.279", "event": "Network VIF plugged"},
+    {"time": "00:00:10.296", "event": "VM Resumed"},
+    {"time": "00:00:10.302", "event": "Instance spawned (19.05s)"},
+    {"time": "00:00:10.470", "event": "Build complete (19.84s)"},
+    {"time": "00:00:17.504", "event": "DELETE request"},
+    {"time": "00:00:17.541", "event": "Termination initiated"},
+    {"time": "00:00:17.754", "event": "Instance destroyed"}
+  ],
+
+  "metrics": {
+    "total_lifecycle_duration_seconds": 13.25,
+    "spawn_to_ready_seconds": 5.8,
+    "hypervisor_spawn_time_seconds": 19.05,
+    "total_build_time_seconds": 19.84,
+    "termination_time_seconds": 0.25,
+    "api_requests_during_lifecycle": 12
+  },
+
+  "anomalies": [],
+
+  "system_state": {
+    "initial": "No VM running",
+    "final": "VM terminated, resources freed",
+    "resources_allocated": {
+      "vcpus": 1,
+      "ram_mb": 2560,
+      "disk_gb": 20
+    }
+  },
+
+  "compliance_evaluation": {
+    "vm_startup_time_intent": {
+      "threshold_seconds": 35,
+      "actual_seconds": 19.84,
+      "status": "COMPLIANT",
+      "rationale": "Build time of 19.84s is well below the 35s threshold"
+    }
+  },
+
+  "root_cause_analysis": null,
+
+  "expected_agent_findings": [
+    "VM lifecycle completed successfully from spawn to termination",
+    "Spawn time of 19.84 seconds indicates normal performance",
+    "Instance went through expected state transitions: Started → Paused → Resumed",
+    "Network setup completed successfully before instance became active",
+    "Clean termination with no errors"
+  ],
+
+  "tags": ["vm_lifecycle", "normal_operation", "spawn", "termination", "performance"]
+}

@@ -1,0 +1,113 @@
+{
+  "scenario_id": "002",
+  "scenario_name": "Recurring Image Cache Warnings",
+  "log_source": "data/logs/openstack-full/OpenStack_2k.log",
+  "line_range": [50, 150],
+  "timestamp_range": {
+    "start": "2017-05-16 00:00:20.345",
+    "end": "2017-05-16 00:09:41.850"
+  },
+  "description": "Repeated warnings about unknown base file in image cache, indicating possible cleanup issue after VM termination",
+
+  "key_events": [
+    {
+      "event_type": "image_cache_warning",
+      "timestamp": "2017-05-16 00:00:20.345",
+      "line_number": 51,
+      "description": "First occurrence of unknown base file warning",
+      "severity": "WARNING",
+      "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:20.345 2931 WARNING nova.virt.libvirt.imagecache [req-addc1839-2ed5-4778-b57e-5854eb7b8b09 - - - - -] Unknown base file: /var/lib/nova/instances/_base/a489c868f0c37da93b76227c91bb03908ac0e742"
+    },
+    {
+      "event_type": "power_state_sync_warning",
+      "timestamp": "2017-05-16 00:09:41.850",
+      "line_number": 70,
+      "description": "Mismatch between database and hypervisor instance counts",
+      "severity": "WARNING",
+      "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:09:41.850 2931 WARNING nova.compute.manager [req-addc1839-2ed5-4778-b57e-5854eb7b8b09 - - - - -] While synchronizing instance power states, found 1 instances in the database and 0 instances on the hypervisor."
+    }
+  ],
+
+  "timeline": [
+    {"time": "00:00:20.345", "event": "Unknown base file warning (1st occurrence)"},
+    {"time": "00:01:01.698", "event": "Unknown base file warning (2nd occurrence)"},
+    {"time": "00:01:45.116", "event": "Unknown base file warning (3rd occurrence)"},
+    {"time": "00:01:50.149", "event": "Unknown base file warning (4th occurrence)"},
+    {"time": "00:09:41.850", "event": "Power state synchronization mismatch warning"}
+  ],
+
+  "metrics": {
+    "warning_count": 19,
+    "warning_frequency_seconds": 30.5,
+    "time_span_minutes": 9.35,
+    "affected_image": "0673dd71-34c5-4fbb-86c4-40623fbe45b4",
+    "database_instance_count": 1,
+    "hypervisor_instance_count": 0
+  },
+
+  "anomalies": [
+    {
+      "type": "recurring_warning",
+      "description": "Image cache warning repeated 19 times over 9+ minutes",
+      "severity": "medium",
+      "impact": "Indicates stale image cache reference after VM deletion",
+      "pattern": "Approximately every 30 seconds"
+    },
+    {
+      "type": "state_mismatch",
+      "description": "Database shows 1 instance but hypervisor shows 0",
+      "severity": "medium",
+      "impact": "Synchronization issue between Nova database and libvirt",
+      "potential_cause": "Instance was deleted from hypervisor but database not yet updated"
+    }
+  ],
+
+  "system_state": {
+    "initial": "VM recently terminated, image cache reference remains",
+    "final": "State mismatch detected between database and hypervisor",
+    "consistency_issues": [
+      "Image cache contains orphaned base file reference",
+      "Database-hypervisor instance count mismatch"
+    ]
+  },
+
+  "compliance_evaluation": {
+    "system_health_intent": {
+      "no_repeated_warnings_threshold": 5,
+      "actual_warning_count": 19,
+      "status": "DEGRADED",
+      "rationale": "Excessive recurring warnings indicate a cleanup or synchronization issue"
+    }
+  },
+
+  "root_cause_analysis": {
+    "primary_cause": "Delayed or failed image cache cleanup after VM termination",
+    "contributing_factors": [
+      "Image cache cleanup process may be slow or failing",
+      "Database synchronization lag with hypervisor state",
+      "Base file reference not properly removed after instance deletion"
+    ],
+    "evidence": [
+      "VM b9000564-fe1a-409b-b8cc-1e88b294cd1d was terminated at 00:00:17.754",
+      "Warnings about the same base file start at 00:00:20.345",
+      "Pattern suggests periodic cache verification finding stale reference",
+      "Power state sync shows database thinks instance exists but hypervisor doesn't"
+    ],
+    "recommended_investigation": [
+      "Check image cache cleanup process logs",
+      "Verify database cleanup operations completed",
+      "Review Nova resource tracker synchronization intervals"
+    ]
+  },
+
+  "expected_agent_findings": [
+    "Recurring warnings about unknown base file appearing every ~30 seconds",
+    "Total of 19 occurrences over 9+ minutes indicates persistent issue",
+    "Image file a489c868f0c37da93b76227c91bb03908ac0e742 not being properly cleaned up",
+    "Database-hypervisor mismatch suggests synchronization delay",
+    "This is likely related to the VM termination that occurred just before warnings started",
+    "System is in degraded state due to cleanup/synchronization issues"
+  ],
+
+  "tags": ["warnings", "image_cache", "cleanup_issue", "state_mismatch", "degraded"]
+}

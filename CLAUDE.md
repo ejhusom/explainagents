@@ -122,8 +122,9 @@ Supervisor agent coordinates specialist agents:
 ✅ **Phase 1 Complete**: Foundation (LLMClient, Agent, SingleAgentWorkflow, basic tools)
 ✅ **Phase 2 Complete**: Data Layer (parsers, indexer, retriever)
 ✅ **Phase 3 Complete**: Multi-Agent Workflows (Sequential, Hierarchical) + Dev UI
+🟡 **Phase 4 Partial**: Evaluation Framework (metrics + 2 ground truth scenarios)
 
-See `PHASE3_SUMMARY.md` for Phase 3 details.
+See `PHASE3_SUMMARY.md` and `PHASE4_SUMMARY.md` for details.
 
 ### What Works Now
 - All three workflow patterns (single, sequential, hierarchical)
@@ -133,12 +134,27 @@ See `PHASE3_SUMMARY.md` for Phase 3 details.
 - Comprehensive execution logging
 - Streamlit development UI (`streamlit run src/dev_ui/experiment_runner.py`)
 - Workflow comparison tools
+- Automated evaluation metrics (event detection, timeline, metrics, anomalies, compliance)
+- Experiment comparison and ranking
+- Ground truth annotation schema with 2 example scenarios
 
-### Next: Phase 4 (Evaluation Framework)
-- Ground truth annotations
-- Automated evaluation metrics
-- Statistical comparison tools
-- Baseline experiment suite
+### Evaluation Tools
+```bash
+# Evaluate single experiment
+python experiments/evaluate_experiment.py eval \
+  --experiment results/exp.json \
+  --ground-truth data/ground_truth/scenario_001_vm_lifecycle.json
+
+# Compare multiple experiments
+python experiments/evaluate_experiment.py compare \
+  --experiments results/*.json \
+  --ground-truth data/ground_truth/scenario_001_vm_lifecycle.json
+```
+
+### Next: Complete Phase 4 + Phase 5
+- Create 8-13 more ground truth scenarios for comprehensive evaluation
+- Phase 5: Intent library expansion + vector search
+- Phase 6: Production frontend
 
 ## Data Sources
 
