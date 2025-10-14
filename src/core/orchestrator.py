@@ -170,8 +170,170 @@ class SequentialWorkflow(Workflow):
 class HierarchicalWorkflow(Workflow):
     """
     Supervisor agent coordinates specialist agents.
-    NOT IMPLEMENTED IN PHASE 1 - Placeholder for future phases.
+    The supervisor:
+    1. Receives the task
+    2. Creates an execution plan (which agents to use, what subtasks)
+    3. Delegates subtasks to specialist agents
+    4. Synthesizes results from specialists into final answer
     """
 
     def execute(self, task: str, data: Dict) -> Dict[str, Any]:
-        raise NotImplementedError("HierarchicalWorkflow will be implemented in Phase 3")
+        """
+        Execute hierarchical workflow with supervisor coordination.
+
+        Args:
+            task: Task description
+            data: Data context
+
+        Returns:
+            Result dict with final synthesized response
+        """
+        # Get supervisor agent (first in sequence)
+        agent_sequence = self.config.get("agent_sequence", [])
+
+        if not agent_sequence or len(agent_sequence) < 2:
+            raise ValueError("Hierarchical workflow requires at least supervisor + 1 specialist in agent_sequence")
+
+        supervisor_name = agent_sequence[0]
+        specialist_names = agent_sequence[1:]
+
+        if supervisor_name not in self.agents:
+            raise ValueError(f"Supervisor agent '{supervisor_name}' not found")
+
+        supervisor = self.agents[supervisor_name]
+
+        # Build initial context
+        context = {
+            "log_source": data.get("log_source"),
+            "intent_source": data.get("intent_source"),
+            "available_data": list(data.keys()),
+            "available_specialists": specialist_names,
+            "specialist_capabilities": self._get_specialist_capabilities(specialist_names)
+        }
+
+        total_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        all_agent_histories = []
+
+        # Step 1: Supervisor creates execution plan
+        planning_task = f"""Task: {task}
+
+You are the supervisor. Analyze this task and create an execution plan.
+
+Available specialist agents: {', '.join(specialist_names)}
+
+Specialist capabilities:
+{context['specialist_capabilities']}
+
+Create a plan by deciding:
+1. Which specialists should work on this task?
+2. What specific subtask should each specialist handle?
+3. In what order should they execute? (note: parallel execution not yet implemented, use sequential)
+
+Respond in this format:
+PLAN:
+- Agent: <specialist_name>
+  Subtask: <specific subtask for this agent>
+- Agent: <specialist_name>
+  Subtask: <specific subtask for this agent>
+
+Then wait for their results before synthesizing."""
+
+        self._log_step("supervisor_planning", supervisor_name, {"task": planning_task, "context": context}, None)
+
+        planning_result = supervisor.run(planning_task, context=context)
+
+        self._log_step("supervisor_plan_complete", supervisor_name, None, planning_result)
+
+        # Track usage
+        total_usage["input_tokens"] += planning_result["usage"]["input_tokens"]
+        total_usage["output_tokens"] += planning_result["usage"]["output_tokens"]
+        total_usage["total_tokens"] += planning_result["usage"]["total_tokens"]
+        all_agent_histories.extend(planning_result["history"])
+
+        # Step 2: Execute specialists based on plan
+        # Parse plan from supervisor response (simple parsing)
+        plan_text = planning_result["content"]
+        specialist_results = {}
+
+        # Execute each specialist mentioned in agent_sequence
+        # For now, we execute all specialists sequentially
+        # Future: parse plan to be more dynamic
+        for specialist_name in specialist_names:
+            if specialist_name not in self.agents:
+                continue
+
+            specialist = self.agents[specialist_name]
+
+            # Build subtask for specialist
+            # Include original task + supervisor's plan + previous specialist results
+            specialist_task = f"""Original task: {task}
+
+Supervisor's plan:
+{plan_text}
+
+"""
+            if specialist_results:
+                specialist_task += "Previous specialist results:\n"
+                for prev_name, prev_result in specialist_results.items():
+                    specialist_task += f"\n{prev_name}: {prev_result}\n"
+
+            specialist_task += f"\nYour role: Execute your part of the plan as the {specialist_name} specialist."
+
+            self._log_step(f"specialist_{specialist_name}_start", specialist_name, {"task": specialist_task}, None)
+
+            result = specialist.run(specialist_task, context=context)
+
+            self._log_step(f"specialist_{specialist_name}_complete", specialist_name, None, result)
+
+            # Store result
+            specialist_results[specialist_name] = result["content"]
+
+            # Track usage
+            total_usage["input_tokens"] += result["usage"]["input_tokens"]
+            total_usage["output_tokens"] += result["usage"]["output_tokens"]
+            total_usage["total_tokens"] += result["usage"]["total_tokens"]
+            all_agent_histories.extend(result["history"])
+
+        # Step 3: Supervisor synthesizes final answer
+        synthesis_task = f"""Original task: {task}
+
+Your plan was:
+{plan_text}
+
+Specialist results:
+"""
+        for specialist_name, result in specialist_results.items():
+            synthesis_task += f"\n{specialist_name}:\n{result}\n"
+
+        synthesis_task += "\nNow synthesize these results into a final, coherent answer to the original task."
+
+        self._log_step("supervisor_synthesis_start", supervisor_name, {"task": synthesis_task}, None)
+
+        final_result = supervisor.run(synthesis_task, context=context)
+
+        self._log_step("supervisor_synthesis_complete", supervisor_name, None, final_result)
+
+        # Track final usage
+        total_usage["input_tokens"] += final_result["usage"]["input_tokens"]
+        total_usage["output_tokens"] += final_result["usage"]["output_tokens"]
+        total_usage["total_tokens"] += final_result["usage"]["total_tokens"]
+        all_agent_histories.extend(final_result["history"])
+
+        return {
+            "result": final_result["content"],
+            "execution_log": self.execution_log,
+            "agent_history": all_agent_histories,
+            "usage": total_usage
+        }
+
+    def _get_specialist_capabilities(self, specialist_names: List[str]) -> str:
+        """Get description of specialist capabilities from their system prompts."""
+        capabilities = []
+        for name in specialist_names:
+            if name in self.agents:
+                agent = self.agents[name]
+                # Get first line or two of system prompt as capability description
+                prompt_lines = agent.config.system_prompt.strip().split('\n')
+                capability = prompt_lines[0] if prompt_lines else f"{name} specialist"
+                capabilities.append(f"- {name}: {capability}")
+        return '\n'.join(capabilities)

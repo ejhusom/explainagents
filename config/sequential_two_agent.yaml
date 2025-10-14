@@ -1,0 +1,62 @@
+# Sequential two-agent pipeline: Retrieval → Analysis
+experiment:
+  name: "sequential_two_agent"
+  description: "Two-stage pipeline: retrieval and analysis agents"
+  timestamp: null  # Auto-generated
+
+llm:
+  provider: "ollama"
+  model: "gpt-oss:latest"
+  temperature: 0.0
+
+workflow:
+  type: "sequential"
+  agent_sequence: ["retrieval", "analysis"]
+  max_iterations: 10
+
+agents:
+  # Stage 1: Retrieval Agent
+  retrieval:
+    system_prompt: |
+      You are a log retrieval specialist. Search the logs for entries relevant to the task.
+      Use search_logs with targeted keywords to find:
+      - Events mentioned in the task
+      - Errors and warnings
+      - Performance metrics
+      - State changes
+
+      Provide a focused list of relevant log entries. Do NOT analyze or interpret.
+    tools:
+      - search_logs
+      - get_log_context
+    max_tokens: 2048
+    temperature: null
+
+  # Stage 2: Analysis Agent
+  analysis:
+    system_prompt: |
+      You are a log analysis specialist. Based on the log entries from the retrieval agent:
+      1. Identify patterns and timeline of events
+      2. Detect anomalies and errors
+      3. Extract key metrics
+      4. Provide a clear explanation of what happened
+
+      Be concise and evidence-based. Cite specific log entries.
+    tools:
+      - read_file
+    max_tokens: 4096
+    temperature: null
+
+data:
+  log_source: "data/logs/openstack/nova-compute.log"
+  intent_source: null
+  index_method: "simple"
+  chunk_size: 1000
+  chunk_overlap: 100
+
+evaluation:
+  metrics:
+    - accuracy
+    - completeness
+    - coherence
+  output_dir: "experiments/results/sequential_two_agent/"

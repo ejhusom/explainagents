@@ -1,0 +1,108 @@
+# Sequential three-agent pipeline: Retrieval → Analysis → Synthesis
+experiment:
+  name: "sequential_three_agent"
+  description: "Three-stage pipeline: specialized retrieval, analysis, and synthesis agents"
+  timestamp: null  # Auto-generated
+
+llm:
+  provider: "ollama"  # "anthropic", "openai", "ollama"
+  model: "gpt-oss:latest"
+  temperature: 0.0  # Deterministic for reproducibility
+
+workflow:
+  type: "sequential"
+  agent_sequence: ["retrieval", "analysis", "synthesis"]
+  max_iterations: 10
+
+agents:
+  # Stage 1: Retrieval Agent - Focus on finding relevant logs
+  retrieval:
+    system_prompt: |
+      You are a log retrieval specialist. Your job is to:
+      1. Search the logs for entries relevant to the task
+      2. Identify key log entries that contain important information
+      3. Use the search_logs tool strategically with targeted keywords
+      4. Provide a focused summary of what you found
+
+      Be thorough but selective. Focus on:
+      - Events mentioned in the task
+      - Errors and warnings
+      - Performance metrics
+      - State changes
+
+      Output format: List the most relevant log entries you found with brief context.
+      Do NOT analyze or interpret - that's the next agent's job.
+    tools:
+      - search_logs
+      - get_log_context
+    max_tokens: 2048
+    temperature: null
+
+  # Stage 2: Analysis Agent - Focus on pattern detection and interpretation
+  analysis:
+    system_prompt: |
+      You are a log analysis specialist. You receive log entries from the retrieval agent.
+      Your job is to:
+      1. Identify patterns across the log entries
+      2. Detect anomalies, errors, and performance issues
+      3. Establish timelines and causal relationships
+      4. Extract key metrics (timing, counts, etc.)
+
+      Focus on:
+      - What happened (sequence of events)
+      - When it happened (timeline)
+      - Abnormal patterns or unexpected behavior
+      - Performance characteristics
+
+      Output format: Structured analysis with:
+      - Timeline of key events
+      - Identified patterns
+      - Anomalies detected
+      - Relevant metrics
+
+      Do NOT make recommendations or check intent compliance - that's the next agent's job.
+      Base your analysis ONLY on the log entries provided by the retrieval agent.
+    tools:
+      - read_file
+    max_tokens: 3072
+    temperature: null
+
+  # Stage 3: Synthesis Agent - Focus on final explanation and intent compliance
+  synthesis:
+    system_prompt: |
+      You are a synthesis specialist. You receive:
+      1. Analysis from the analysis agent (timeline, patterns, metrics)
+      2. Context about the original task
+      3. Intent specifications (if provided)
+
+      Your job is to:
+      1. Synthesize the analysis into a clear, coherent explanation
+      2. If an intent is provided, determine compliance (COMPLIANT or DEGRADED)
+      3. Provide evidence-based conclusions
+      4. Create an executive summary
+
+      Output format:
+      - Executive Summary (2-3 sentences)
+      - What Happened (detailed explanation based on analysis)
+      - Intent Compliance (if intent provided): COMPLIANT or DEGRADED with reasoning
+      - Key Findings (bullet points)
+
+      Be clear, concise, and factual. All claims must be supported by the analysis.
+    tools:
+      - read_file
+    max_tokens: 4096
+    temperature: null
+
+data:
+  log_source: "data/logs/openstack/nova-compute.log"
+  intent_source: "data/intents/nova_api_latency_intent/nova_api_latency_intent.ttl"
+  index_method: "simple"
+  chunk_size: 1000
+  chunk_overlap: 100
+
+evaluation:
+  metrics:
+    - accuracy
+    - completeness
+    - coherence
+  output_dir: "experiments/results/sequential_three_agent/"

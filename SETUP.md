@@ -48,12 +48,29 @@ python experiments/run_experiment.py \
   --task "Find all VM startup events and calculate average spawn time"
 ```
 
-### 5. View Results
+### 5. Run Development UI (Optional)
 
-Results are saved to `experiments/results/baseline_single/`:
-- `result.json` - Final explanation and metadata
-- `execution_log.jsonl` - Workflow execution trace
-- `agent_history.jsonl` - Detailed agent interactions
+For quick iteration and testing, use the Streamlit development UI:
+
+```bash
+# Launch the dev UI
+streamlit run src/dev_ui/experiment_runner.py
+```
+
+Features:
+- Select any config file from dropdown
+- Customize task description
+- Run experiments with one click
+- View results, execution trace, and metrics in tabs
+- No files are saved (use CLI for persistent experiments)
+
+### 6. View Results
+
+CLI experiment results are saved with timestamps (e.g., `experiments/results/baseline_single/baseline_single_agent_2025-10-14T18-51-28-632040.json`):
+- Complete configuration (with API keys redacted)
+- Full execution trace
+- Agent interaction history
+- Final output and token usage
 
 ## Project Structure
 

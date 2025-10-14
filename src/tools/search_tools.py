@@ -1,118 +1,96 @@
 """
 Search tools for log analysis.
-Phase 1: Simple keyword-based search stub.
-Phase 2: Will be enhanced with proper indexing and retrieval.
+Uses the data layer (Retriever, LogIndexer) for efficient search and context retrieval.
 """
 
-from typing import List, Dict
+from typing import List, Optional
 
 
-# Global log cache for this session
-_log_cache: Dict[str, List[str]] = {}
+# Global retriever for this session
+_retriever: Optional['Retriever'] = None
 
 
-def load_logs(filepath: str) -> None:
+def set_retriever(retriever) -> None:
     """
-    Load logs into memory for searching.
+    Set the retriever instance to use for search operations.
+    This should be called during experiment initialization.
 
     Args:
-        filepath: Path to log file
+        retriever: Retriever instance from data layer
     """
-    global _log_cache
-
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
-        _log_cache[filepath] = [line.strip() for line in lines if line.strip()]
+    global _retriever
+    _retriever = retriever
 
 
 def search_logs(query: str, k: int = 10, source: str = None) -> List[str]:
     """
-    Search logs for entries matching query.
-    Phase 1: Simple keyword matching.
+    Search logs for entries matching query using the indexer.
 
     Args:
         query: Search query (keywords)
         k: Number of results to return
-        source: Optional specific log source to search
+        source: Optional specific log source to search (currently unused)
 
     Returns:
-        List of matching log entries
+        List of matching log entries formatted as strings
     """
-    global _log_cache
+    global _retriever
 
-    # If no logs loaded, return empty
-    if not _log_cache:
-        return []
+    if _retriever is None:
+        return ["Error: Log retriever not initialized. Cannot search logs."]
 
-    # Determine which logs to search
-    if source and source in _log_cache:
-        logs_to_search = {source: _log_cache[source]}
-    else:
-        logs_to_search = _log_cache
+    try:
+        # Use the retriever's search method
+        results = _retriever.search(query, k=k)
 
-    # Simple keyword search
-    query_terms = query.lower().split()
-    matches = []
+        if not results:
+            return [f"No results found for query: {query}"]
 
-    for filepath, lines in logs_to_search.items():
-        for i, line in enumerate(lines):
-            line_lower = line.lower()
+        # Format results for display
+        formatted = []
+        for r in results:
+            # Include line number if available
+            line_info = f"Line {r.get('line_number', '?')}" if 'line_number' in r else "?"
+            content = r.get('text') or r.get('raw_text', '')
+            score = r.get('score', 0)
 
-            # Check if all query terms appear in line
-            if all(term in line_lower for term in query_terms):
-                matches.append({
-                    "source": filepath,
-                    "line_number": i + 1,
-                    "content": line
-                })
+            formatted.append(f"[{line_info}, Score: {score:.2f}] {content}")
 
-    # Return top k matches
-    results = matches[:k]
+        return formatted
 
-    # Format as list of strings
-    return [f"[{r['source']}:{r['line_number']}] {r['content']}" for r in results]
+    except Exception as e:
+        return [f"Error during search: {str(e)}"]
 
 
 def get_log_context(entry_id: str, window: int = 2) -> str:
     """
-    Get context around a log entry.
-    Phase 1: Stub implementation.
+    Get context around a log entry using document ID.
 
     Args:
-        entry_id: Entry identifier (format: "filepath:line_number")
+        entry_id: Document ID (integer) or line number
         window: Number of lines before/after to include
 
     Returns:
         Context window as string
     """
-    # Parse entry_id
+    global _retriever
+
+    if _retriever is None:
+        return "Error: Log retriever not initialized. Cannot get context."
+
     try:
-        parts = entry_id.split(":")
-        if len(parts) < 2:
-            return "Invalid entry_id format. Expected 'filepath:line_number'"
+        # Parse entry_id - should be a document ID (integer)
+        doc_id = int(entry_id)
 
-        filepath = ":".join(parts[:-1])  # Handle paths with colons
-        line_num = int(parts[-1])
-    except (ValueError, IndexError):
-        return "Invalid entry_id format"
+        # Use retriever's context window method
+        context = _retriever.get_context_window(doc_id, window=window)
 
-    global _log_cache
+        return context
 
-    if filepath not in _log_cache:
-        return f"Log file not loaded: {filepath}"
-
-    lines = _log_cache[filepath]
-
-    # Get context window
-    start_idx = max(0, line_num - window - 1)
-    end_idx = min(len(lines), line_num + window)
-
-    context_lines = []
-    for i in range(start_idx, end_idx):
-        marker = ">>> " if i == line_num - 1 else "    "
-        context_lines.append(f"{marker}{i+1}: {lines[i]}")
-
-    return "\n".join(context_lines)
+    except ValueError:
+        return f"Invalid entry_id format. Expected integer document ID, got: {entry_id}"
+    except Exception as e:
+        return f"Error getting context: {str(e)}"
 
 
 # Tool schemas for LLM function calling
@@ -121,13 +99,13 @@ SEARCH_TOOLS_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "search_logs",
-            "description": "Search log entries for keywords or patterns. Returns matching log lines.",
+            "description": "Search log entries for keywords or patterns. Returns matching log lines with relevance scores. Use keywords that would appear in the logs you're looking for.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Search query with keywords to find in logs"
+                        "description": "Search query with keywords to find in logs (space-separated)"
                     },
                     "k": {
                         "type": "integer",
@@ -136,7 +114,7 @@ SEARCH_TOOLS_SCHEMAS = [
                     },
                     "source": {
                         "type": "string",
-                        "description": "Optional: specific log file to search"
+                        "description": "Optional: specific log file to search (currently unused)"
                     }
                 },
                 "required": ["query"]
@@ -147,13 +125,13 @@ SEARCH_TOOLS_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_log_context",
-            "description": "Get context lines around a specific log entry",
+            "description": "Get context lines around a specific log entry. The entry_id is shown in the search results line information (e.g., 'Line 42' means entry_id is 42).",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "entry_id": {
                         "type": "string",
-                        "description": "Entry ID in format 'filepath:line_number'"
+                        "description": "Document ID (integer) from search results"
                     },
                     "window": {
                         "type": "integer",

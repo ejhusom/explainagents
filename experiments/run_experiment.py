@@ -15,9 +15,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from core.config_loader import load_config, validate_data_sources
 from core.llm_client import LLMClient
 from core.agent import Agent, AgentConfig
-from core.orchestrator import SingleAgentWorkflow, SequentialWorkflow
+from core.orchestrator import SingleAgentWorkflow, SequentialWorkflow, HierarchicalWorkflow
 from tools.tool_registry import get_tools_for_agent
-from tools.search_tools import load_logs
+from tools import search_tools
+from data.parsers import parse_text_log, parse_csv, parse_json
+from data.indexer import LogIndexer
+from data.retriever import Retriever
 
 
 def main():
@@ -70,14 +73,45 @@ def main():
         print(f"✗ Error initializing LLM client: {e}")
         sys.exit(1)
 
-    # Load log data
-    print("\nLoading log data...")
+    # Load and index log data
+    print("\nLoading and indexing log data...")
     log_source = config["data"]["log_source"]
     try:
-        load_logs(log_source)
-        print(f"✓ Logs loaded from: {log_source}")
+        # Detect log format and parse
+        if log_source.endswith('.csv'):
+            print("  Detected CSV format")
+            documents = parse_csv(log_source)
+        elif log_source.endswith('.json') or log_source.endswith('.jsonl'):
+            print("  Detected JSON format")
+            documents = parse_json(log_source)
+        else:
+            # Default to text log format
+            print("  Detected text log format")
+            documents = parse_text_log(log_source)
+
+        print(f"  ✓ Parsed {len(documents)} log entries")
+
+        # Create indexer and index documents
+        index_method = config["data"].get("index_method", "simple")
+        indexer = LogIndexer(method=index_method)
+        indexer.index(documents)
+        print(f"  ✓ Created {index_method} index with {indexer.num_documents} documents")
+
+        # Create retriever with chunking
+        chunk_size = config["data"].get("chunk_size", 1000)
+        chunk_overlap = config["data"].get("chunk_overlap", 100)
+        retriever = Retriever(indexer, chunk_size=chunk_size, overlap=chunk_overlap)
+        print(f"  ✓ Created retriever with chunk_size={chunk_size}, overlap={chunk_overlap}")
+        print(f"  ✓ Split into {len(retriever.chunks)} chunks")
+
+        # Set retriever in search_tools module
+        search_tools.set_retriever(retriever)
+        print(f"✓ Data layer initialized for: {log_source}")
+
     except Exception as e:
-        print(f"✗ Error loading logs: {e}")
+        print(f"✗ Error loading and indexing logs: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
     # Initialize agents
@@ -115,6 +149,8 @@ def main():
             workflow = SingleAgentWorkflow(agents, config["workflow"])
         elif workflow_type == "sequential":
             workflow = SequentialWorkflow(agents, config["workflow"])
+        elif workflow_type == "hierarchical":
+            workflow = HierarchicalWorkflow(agents, config["workflow"])
         else:
             raise ValueError(f"Unsupported workflow type: {workflow_type}")
 
