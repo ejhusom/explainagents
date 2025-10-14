@@ -47,7 +47,7 @@ class LLMClient:
         Make a completion request to the LLM.
 
         Args:
-            model: Model identifier (e.g., "claude-sonnet-4-20250514", "gpt-4o")
+            model: Model identifier (e.g., "claude-sonnet-4-20250514", "gpt-4o", "gpt-oss")
             messages: List of message dicts with 'role' and 'content'
             system: System prompt (optional, can also be in messages)
             tools: List of tool definitions for function calling
@@ -69,10 +69,14 @@ class LLMClient:
                 "temperature": temperature
             }
 
+            # Add api_base for Ollama
+            if self.provider == "ollama" and self.base_url:
+                kwargs["api_base"] = self.base_url
+
             # Add system prompt if provided
             if system:
                 # For models that support system parameter
-                if self.provider in ["anthropic", "openai"]:
+                if self.provider in ["anthropic", "openai", "ollama"]:
                     # Prepend system message to messages list
                     kwargs["messages"] = [{"role": "system", "content": system}] + messages
 
@@ -80,6 +84,10 @@ class LLMClient:
             if tools and self._supports_tools(model):
                 kwargs["tools"] = tools
                 kwargs["tool_choice"] = "auto"
+
+            # For Ollama, prefix model name with "ollama/"
+            if self.provider == "ollama" and not model.startswith("ollama/") and not model.startswith("ollama_chat/"):
+                kwargs["model"] = f"ollama_chat/{model}"
 
             # Make the completion request
             response = completion(**kwargs)
@@ -156,12 +164,12 @@ class LLMClient:
         if "claude" in model.lower():
             return True
 
-        # GPT-4 and later support tools
-        if "gpt-4" in model.lower() or "gpt-3.5-turbo" in model.lower():
+        # OpenAI models that support function calling
+        if "gpt-4" in model.lower() or "gpt-3.5-turbo" in model.lower() or "gpt-5" in model.lower():
             return True
 
         # Some Ollama models support tools
-        if "ollama" in model.lower():
+        if "ollama" in self.provider.lower():
             model_info = ollama.show(model)
             if "tools" in model_info.capabilities:
                 return True
