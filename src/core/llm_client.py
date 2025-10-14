@@ -5,6 +5,7 @@ Uses LiteLLM to support Anthropic, OpenAI, Ollama, and others.
 
 from typing import List, Dict, Optional, Any
 import litellm
+import ollama
 from litellm import completion
 
 
@@ -159,9 +160,11 @@ class LLMClient:
         if "gpt-4" in model.lower() or "gpt-3.5-turbo" in model.lower():
             return True
 
-        # Most Ollama models don't support tools yet
+        # Some Ollama models support tools
         if "ollama" in model.lower():
-            return False
+            model_info = ollama.show(model)
+            if "tools" in model_info.capabilities:
+                return True
 
         # Default to False for unknown models
         return False

@@ -148,37 +148,48 @@ def main():
         traceback.print_exc()
         sys.exit(1)
 
-    # Save results
+    # Save results - single comprehensive JSON file with timestamp
     output_dir = config["evaluation"]["output_dir"]
     os.makedirs(output_dir, exist_ok=True)
 
-    print(f"\nSaving results to: {output_dir}")
+    # Create filename with timestamp (using the experiment timestamp)
+    timestamp = config["experiment"]["timestamp"].replace(":", "-").replace(".", "-")
+    experiment_name = config["experiment"]["name"]
+    result_file = os.path.join(output_dir, f"{experiment_name}_{timestamp}.json")
 
-    # Save result
-    result_file = os.path.join(output_dir, "result.json")
+    print(f"\nSaving results to: {result_file}")
+
+    # Sanitize config for JSON serialization (remove API key)
+    config_for_saving = config.copy()
+    if "api_key" in config_for_saving["llm"]:
+        config_for_saving["llm"]["api_key"] = "***REDACTED***"
+
+    # Build comprehensive result document
+    experiment_result = {
+        "metadata": {
+            "experiment_name": config["experiment"]["name"],
+            "description": config["experiment"].get("description", ""),
+            "timestamp": config["experiment"]["timestamp"],
+            "task": args.task
+        },
+        "configuration": config_for_saving,
+        "execution": {
+            "workflow_type": config["workflow"]["type"],
+            "agent_sequence": config["workflow"]["agent_sequence"],
+            "workflow_execution_log": result["execution_log"]
+        },
+        "results": {
+            "final_output": result["result"],
+            "token_usage": result["usage"]
+        }
+    }
+
+    # Save as single JSON file
     with open(result_file, 'w') as f:
-        json.dump({
-            "experiment": config["experiment"],
-            "task": args.task,
-            "result": result["result"],
-            "usage": result["usage"]
-        }, f, indent=2)
-    print(f"  ✓ Result saved to: {result_file}")
+        json.dump(experiment_result, f, indent=2)
 
-    # Save execution log
-    exec_log_file = os.path.join(output_dir, "execution_log.jsonl")
-    with open(exec_log_file, 'w') as f:
-        for log_entry in result["execution_log"]:
-            f.write(json.dumps(log_entry) + "\n")
-    print(f"  ✓ Execution log saved to: {exec_log_file}")
-
-    # Save agent history
-    agent_history_file = os.path.join(output_dir, "agent_history.jsonl")
-    with open(agent_history_file, 'w') as f:
-        for history_entry in result["agent_history"]:
-            f.write(json.dumps(history_entry) + "\n")
-    print(f"  ✓ Agent history saved to: {agent_history_file}")
-
+    print(f"  ✓ Complete experiment data saved to: {result_file}")
+    print(f"  ✓ File size: {os.path.getsize(result_file)} bytes")
     print("\n✓ Experiment completed successfully!")
 
 

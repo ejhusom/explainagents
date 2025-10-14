@@ -5,7 +5,7 @@ experiment:
   timestamp: null  # Auto-generated if null
 
 llm:
-  provider: "anthropic"
+  provider: "anthropic"  # or "openai", "ollama"
   model: "claude-sonnet-4-20250514"
   temperature: 0.0  # 0.0 for reproducibility, higher for creativity
 

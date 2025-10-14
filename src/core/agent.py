@@ -122,12 +122,26 @@ class Agent:
                 }
 
             # Execute tool calls
+            # First, add the assistant message with tool calls
+            # Convert our format to LiteLLM's expected format
+            litellm_tool_calls = []
+            for tc in response["tool_calls"]:
+                litellm_tool_calls.append({
+                    "id": tc.get("id"),
+                    "type": "function",
+                    "function": {
+                        "name": tc["name"],
+                        "arguments": tc["arguments"] if isinstance(tc["arguments"], str) else json.dumps(tc["arguments"])
+                    }
+                })
+
             messages.append({
                 "role": "assistant",
-                "content": response["content"] if response["content"] else "",
-                "tool_calls": response["tool_calls"]
+                "content": response["content"] if response["content"] else None,
+                "tool_calls": litellm_tool_calls
             })
 
+            # Now execute tools and add results
             for tool_call in response["tool_calls"]:
                 tool_name = tool_call["name"]
                 all_tool_calls.append(tool_call)
@@ -139,7 +153,7 @@ class Agent:
                 except Exception as e:
                     result_content = f"Error executing tool: {str(e)}"
 
-                # Add tool result to messages
+                # Add tool result in LiteLLM format
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.get("id"),
