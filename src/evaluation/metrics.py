@@ -22,26 +22,26 @@ def load_ground_truth(ground_truth_path: str) -> Dict:
         return json.load(f)
 
 
-def calculate_event_detection_metrics(
+def calculate_event_detection_accuracy(
     agent_output: str,
     ground_truth: Dict
 ) -> Dict[str, float]:
     """
-    Calculate precision, recall, and F1 for event detection.
+    Calculate event detection accuracy.
 
-    Checks if the agent identified the key events from ground truth.
+    Measures what percentage of key ground truth events the agent mentioned.
 
     Args:
         agent_output: Agent's final explanation
         ground_truth: Ground truth annotation
 
     Returns:
-        Dict with precision, recall, f1_score
+        Dict with accuracy, events_found, events_total
     """
     key_events = ground_truth.get("key_events", [])
 
     if not key_events:
-        return {"precision": 0.0, "recall": 0.0, "f1_score": 0.0, "events_found": 0, "events_total": 0}
+        return {"accuracy": 0.0, "events_found": 0, "events_total": 0}
 
     # Extract mentioned events from agent output (simple keyword matching)
     output_lower = agent_output.lower()
@@ -67,21 +67,11 @@ def calculate_event_detection_metrics(
 
     total_events = len(key_events)
 
-    # Calculate precision and recall
-    # Precision: of the events we mention, how many are relevant?
-    # For simplicity, assume agent mentions ~same number of events as found
-    precision = events_found / total_events if total_events > 0 else 0.0
-
-    # Recall: of the relevant events, how many did we find?
-    recall = events_found / total_events if total_events > 0 else 0.0
-
-    # F1 score
-    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+    # Calculate accuracy: what percentage of key events were detected?
+    accuracy = events_found / total_events if total_events > 0 else 0.0
 
     return {
-        "precision": precision,
-        "recall": recall,
-        "f1_score": f1,
+        "accuracy": accuracy,
         "events_found": events_found,
         "events_total": total_events
     }
@@ -307,14 +297,14 @@ def calculate_comprehensiveness(
     Returns:
         Comprehensiveness score (0.0 to 1.0)
     """
-    event_metrics = calculate_event_detection_metrics(agent_output, ground_truth)
+    event_metrics = calculate_event_detection_accuracy(agent_output, ground_truth)
     timeline_metrics = calculate_timeline_accuracy(agent_output, ground_truth)
     metrics_accuracy = calculate_metrics_accuracy(agent_output, ground_truth)
     anomaly_detection = calculate_anomaly_detection(agent_output, ground_truth)
 
     # Weight different aspects
     scores = [
-        event_metrics["recall"] * 0.3,  # 30% weight on event detection
+        event_metrics["accuracy"] * 0.3,  # 30% weight on event detection
         timeline_metrics["sequence_correct"] * 0.2,  # 20% on timeline
         metrics_accuracy["accuracy"] * 0.2,  # 20% on metrics
         anomaly_detection["detection_rate"] * 0.3,  # 30% on anomaly detection
@@ -352,7 +342,7 @@ def calculate_metrics(
     if ground_truth_path and Path(ground_truth_path).exists():
         ground_truth = load_ground_truth(ground_truth_path)
 
-        event_metrics = calculate_event_detection_metrics(agent_output, ground_truth)
+        event_metrics = calculate_event_detection_accuracy(agent_output, ground_truth)
         timeline_metrics = calculate_timeline_accuracy(agent_output, ground_truth)
         metrics_accuracy = calculate_metrics_accuracy(agent_output, ground_truth)
         anomaly_detection = calculate_anomaly_detection(agent_output, ground_truth)

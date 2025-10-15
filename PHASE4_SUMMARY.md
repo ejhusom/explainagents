@@ -40,11 +40,9 @@ Created structured ground truth format and 2 diverse scenarios:
 
 Implemented comprehensive metrics in `src/evaluation/metrics.py`:
 
-**Event Detection Metrics:**
-- Precision: Of events mentioned, how many are relevant?
-- Recall: Of relevant events, how many were detected?
-- F1 Score: Harmonic mean of precision and recall
-- Event count tracking
+**Event Detection Accuracy:**
+- Accuracy: Percentage of key ground truth events mentioned by agent
+- Event count tracking (found vs. total)
 
 **Timeline Accuracy:**
 - Temporal marker detection
@@ -122,9 +120,7 @@ Output Length: 206 words
 
 Accuracy Metrics:
   Event Detection:
-    - Recall: 77.78%
-    - Precision: 77.78%
-    - F1 Score: 77.78%
+    - Accuracy: 77.78% (7/9 events)
   Timeline Accuracy: 0.00%
   Metrics Accuracy: 16.67%
   Anomaly Detection: 100.00%
@@ -132,7 +128,7 @@ Accuracy Metrics:
 ```
 
 **Interpretation:**
-- Agent found most key events (77.78%)
+- Agent detected most key events (77.78%)
 - Didn't explicitly mention timeline structure
 - Identified some metrics (spawn time)
 - No anomalies to detect (correct)
@@ -158,7 +154,7 @@ experiments/
 
 | Category | Metrics | Description |
 |----------|---------|-------------|
-| **Event Detection** | Precision, Recall, F1 | How well agent identifies key events |
+| **Event Detection** | Accuracy | Percentage of key events mentioned |
 | **Timeline** | Sequence Correctness | Order and temporal awareness |
 | **Quantitative** | Metrics Accuracy | Numerical value identification |
 | **Anomalies** | Detection Rate | Issue identification capability |
