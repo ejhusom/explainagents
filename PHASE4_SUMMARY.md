@@ -44,10 +44,10 @@ Implemented comprehensive metrics in `src/evaluation/metrics.py`:
 - Accuracy: Percentage of key ground truth events mentioned by agent
 - Event count tracking (found vs. total)
 
-**Timeline Accuracy:**
-- Temporal marker detection
-- Event sequence correctness
-- Timeline structure assessment
+**Timeline Sequence Accuracy:**
+- Checks if events appear in correct chronological order
+- Binary accuracy (1.0 = correct order, 0.0 = wrong order)
+- Tracks how many timeline events were mentioned
 
 **Metrics Accuracy:**
 - Checks if agent identified key quantitative metrics
@@ -121,7 +121,7 @@ Output Length: 206 words
 Accuracy Metrics:
   Event Detection:
     - Accuracy: 77.78% (7/9 events)
-  Timeline Accuracy: 0.00%
+  Timeline Sequence: 0.00% (events not in chronological order)
   Metrics Accuracy: 16.67%
   Anomaly Detection: 100.00%
   Comprehensiveness: 56.67%
@@ -129,7 +129,7 @@ Accuracy Metrics:
 
 **Interpretation:**
 - Agent detected most key events (77.78%)
-- Didn't explicitly mention timeline structure
+- Didn't describe events in correct chronological sequence
 - Identified some metrics (spawn time)
 - No anomalies to detect (correct)
 - Overall comprehensiveness of 56.67% is reasonable baseline
@@ -155,7 +155,7 @@ experiments/
 | Category | Metrics | Description |
 |----------|---------|-------------|
 | **Event Detection** | Accuracy | Percentage of key events mentioned |
-| **Timeline** | Sequence Correctness | Order and temporal awareness |
+| **Timeline Sequence** | Accuracy | Events mentioned in correct chronological order |
 | **Quantitative** | Metrics Accuracy | Numerical value identification |
 | **Anomalies** | Detection Rate | Issue identification capability |
 | **Compliance** | Assessment Accuracy | Intent status evaluation |

@@ -77,67 +77,68 @@ def calculate_event_detection_accuracy(
     }
 
 
-def calculate_timeline_accuracy(
+def calculate_timeline_sequence_accuracy(
     agent_output: str,
     ground_truth: Dict
 ) -> Dict[str, Any]:
     """
-    Assess if agent correctly identified the timeline/sequence of events.
+    Check if agent mentioned events in the correct chronological sequence.
+
+    Measures whether the order of events in agent's output matches the
+    ground truth timeline order.
 
     Args:
         agent_output: Agent's final explanation
         ground_truth: Ground truth annotation
 
     Returns:
-        Dict with timeline_mentioned (bool) and sequence_correct (float 0-1)
+        Dict with accuracy, events_in_sequence, events_total
     """
     timeline = ground_truth.get("timeline", [])
 
     if not timeline:
-        return {"timeline_mentioned": False, "sequence_correct": 0.0, "temporal_markers": 0}
+        return {"accuracy": 0.0, "events_in_sequence": 0, "events_total": 0}
 
     output_lower = agent_output.lower()
 
-    # Check for temporal markers
-    temporal_patterns = [
-        r'\d{2}:\d{2}:\d{2}',  # Time stamps
-        r'at \d{2}:\d{2}',
-        r'after',
-        r'before',
-        r'then',
-        r'next',
-        r'subsequently',
-        r'following',
-        r'timeline',
-        r'sequence',
-        r'first.*then.*finally',
-    ]
-
-    temporal_marker_count = sum(1 for pattern in temporal_patterns if re.search(pattern, output_lower))
-    timeline_mentioned = temporal_marker_count >= 2
-
-    # Check if events mentioned in correct order
+    # Find which events were mentioned and their positions
     event_positions = []
     for event in timeline:
         event_desc = event.get("event", "").lower()
-        pos = output_lower.find(event_desc[:20] if len(event_desc) > 20 else event_desc)
-        if pos != -1:
-            event_positions.append((event_desc, pos))
 
-    # Calculate sequence correctness
-    if len(event_positions) >= 2:
-        # Check if found events appear in correct order
+        # Try to find the event description using keyword matching
+        # Split event into keywords and check if significant ones appear
+        keywords = [word for word in event_desc.split() if len(word) > 3]
+
+        # Check if enough keywords from this event appear in output
+        if keywords:
+            # Find position of first keyword match as proxy for event position
+            for keyword in keywords:
+                pos = output_lower.find(keyword)
+                if pos != -1:
+                    event_positions.append((event_desc, pos))
+                    break
+
+    # Calculate sequence accuracy
+    events_total = len(timeline)
+    events_found = len(event_positions)
+
+    if events_found >= 2:
+        # Check if found events appear in correct chronological order
         sorted_positions = sorted(event_positions, key=lambda x: x[1])
         correct_order = [e[0] for e in event_positions] == [e[0] for e in sorted_positions]
-        sequence_correct = 1.0 if correct_order else 0.5
+        accuracy = 1.0 if correct_order else 0.0
+    elif events_found == 1:
+        # Can't determine sequence with only 1 event, but give partial credit for mentioning it
+        accuracy = 0.5
     else:
-        sequence_correct = 0.0
+        # No events mentioned
+        accuracy = 0.0
 
     return {
-        "timeline_mentioned": timeline_mentioned,
-        "sequence_correct": sequence_correct,
-        "temporal_markers": temporal_marker_count,
-        "events_in_sequence": len(event_positions)
+        "accuracy": accuracy,
+        "events_in_sequence": events_found,
+        "events_total": events_total
     }
 
 
@@ -298,14 +299,14 @@ def calculate_comprehensiveness(
         Comprehensiveness score (0.0 to 1.0)
     """
     event_metrics = calculate_event_detection_accuracy(agent_output, ground_truth)
-    timeline_metrics = calculate_timeline_accuracy(agent_output, ground_truth)
+    timeline_metrics = calculate_timeline_sequence_accuracy(agent_output, ground_truth)
     metrics_accuracy = calculate_metrics_accuracy(agent_output, ground_truth)
     anomaly_detection = calculate_anomaly_detection(agent_output, ground_truth)
 
     # Weight different aspects
     scores = [
         event_metrics["accuracy"] * 0.3,  # 30% weight on event detection
-        timeline_metrics["sequence_correct"] * 0.2,  # 20% on timeline
+        timeline_metrics["accuracy"] * 0.2,  # 20% on timeline sequence
         metrics_accuracy["accuracy"] * 0.2,  # 20% on metrics
         anomaly_detection["detection_rate"] * 0.3,  # 30% on anomaly detection
     ]
@@ -343,7 +344,7 @@ def calculate_metrics(
         ground_truth = load_ground_truth(ground_truth_path)
 
         event_metrics = calculate_event_detection_accuracy(agent_output, ground_truth)
-        timeline_metrics = calculate_timeline_accuracy(agent_output, ground_truth)
+        timeline_metrics = calculate_timeline_sequence_accuracy(agent_output, ground_truth)
         metrics_accuracy = calculate_metrics_accuracy(agent_output, ground_truth)
         anomaly_detection = calculate_anomaly_detection(agent_output, ground_truth)
         compliance_accuracy = calculate_compliance_accuracy(agent_output, ground_truth)
@@ -352,7 +353,7 @@ def calculate_metrics(
         metrics.update({
             "ground_truth_scenario": ground_truth.get("scenario_name"),
             "event_detection": event_metrics,
-            "timeline_accuracy": timeline_metrics,
+            "timeline_sequence": timeline_metrics,
             "metrics_accuracy": metrics_accuracy,
             "anomaly_detection": anomaly_detection,
             "compliance_assessment": compliance_accuracy,
