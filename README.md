@@ -1,4 +1,8 @@
-# iExplain: Implementation Specification
+# iExplain: Intent-Aware Log Analysis
+
+> **🚀 Quick Start**: See [QUICKSTART.md](QUICKSTART.md) to get up and running in 5 minutes!
+>
+> **📖 Full Documentation**: Complete Phase 6 summary in [PHASE6_SUMMARY.md](PHASE6_SUMMARY.md)
 
 ## Project Overview
 

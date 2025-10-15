@@ -1,0 +1,80 @@
+# iExplain Frontend Configuration
+
+frontend:
+  title: "iExplain - Intent-Aware Log Analysis"
+  subtitle: "Explainable AI for System Logs"
+  theme: "light"  # light or dark
+  page_icon: "🔍"
+  layout: "wide"
+
+  # File handling
+  max_file_size_mb: 100
+  supported_formats:
+    - ".log"
+    - ".txt"
+    - ".csv"
+    - ".json"
+    - ".jsonl"
+
+  # Search defaults
+  default_search_method: "hybrid"  # simple, vector, or hybrid
+  default_hybrid_weight: 0.6       # 0.0-1.0 (weight for primary indexer)
+  default_results_count: 20
+
+# Workflow defaults
+workflow:
+  default_type: "sequential"  # single_agent, sequential, or hierarchical
+  default_chunk_size: 1000
+  default_overlap: 100
+
+# LLM defaults
+llm:
+  default_provider: "anthropic"
+  default_model: "claude-sonnet-4-20250514"
+  default_max_tokens: 4096
+  default_temperature: 0.7
+
+# Storage configuration
+storage:
+  database_path: "data/frontend.db"
+  results_path: "data/analyses/"
+  max_history_entries: 1000
+
+# Visualization settings
+visualization:
+  chart_theme: "streamlit"
+  timeline_height: 400
+  compliance_colors:
+    COMPLIANT: "#00CC96"
+    DEGRADED: "#FFA15A"
+    NON_COMPLIANT: "#EF553B"
+    UNKNOWN: "#636EFA"
+
+# Cost estimates (USD per 1K tokens)
+cost_estimates:
+  claude-sonnet:
+    input: 0.003
+    output: 0.015
+  claude-opus:
+    input: 0.015
+    output: 0.075
+  gpt-4:
+    input: 0.03
+    output: 0.06
+  gpt-3.5:
+    input: 0.0015
+    output: 0.002
+  gpt-4o:
+    input: 0.0025
+    output: 0.010
+
+# UI settings
+ui:
+  sidebar_state: "expanded"  # expanded or collapsed
+  results_per_page: 10
+  show_debug_info: false
+  enable_export: true
+  export_formats:
+    - "JSON"
+    - "Markdown"
+    - "Text"

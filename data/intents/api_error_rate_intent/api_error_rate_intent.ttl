@@ -1,0 +1,40 @@
+@prefix icm:  <http://tio.models.tmforum.org/tio/v3.6.0/IntentCommonModel/> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix log:  <http://www.w3.org/2000/10/swap/log#> .
+@prefix set:  <http://www.w3.org/2000/10/swap/set#> .
+@prefix quan: <http://www.w3.org/2000/10/swap/quantities#> .
+@prefix iexp: <http://intendproject.eu/iexplain#> .
+
+iexp:I3 a icm:Intent ;
+    dct:description "Maintain low API error rate for Nova service"@en ;
+    log:allOf ( iexp:DE3 iexp:RE3 ) ;
+.
+
+iexp:DE3 a icm:DeliveryExpectation ;
+    icm:target iexp:nova-api-service ;
+    dct:description "API error rate must remain below 5%"@en ;
+    log:allOf ( iexp:C3 iexp:CX3 ) ;
+.
+
+iexp:C3 a icm:Condition ;
+    dct:description "Error rate threshold"@en ;
+    set:forAll (
+    _:X
+    [ icm:valuesOfTargetProperty ( iexp:APIErrorRate ) ]
+    quan:smaller ( _:X [ rdf:value "5"^^xsd:decimal ; quan:unit "%" ] )
+    ) ;
+.
+
+iexp:CX3 a icm:Context ;
+    dct:description "Applied to all Nova API endpoints"@en ;
+    iexp:appliesToService "nova-api" ;
+    iexp:includesStatusCodes "4xx, 5xx" ;
+.
+
+iexp:RE3 a icm:ReportingExpectation ;
+    icm:target iexp:monitoring-system ;
+    dct:description "Report API error rate and affected endpoints"@en ;
+.

@@ -1,0 +1,16 @@
+@prefix icm:  <http://tio.models.tmforum.org/tio/v3.6.0/IntentCommonModel/> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix iexp: <http://intendproject.eu/iexplain#> .
+
+iexp:I6 a icm:Intent ;
+    dct:description "Ensure metadata service availability and performance"@en ;
+.
+
+iexp:DE6 a icm:DeliveryExpectation ;
+    icm:target iexp:metadata-service ;
+    dct:description "Metadata service response time must be under 500ms"@en ;
+    iexp:maxResponseTime "500"^^xsd:decimal ;
+    iexp:unit "milliseconds" ;
+    iexp:httpMethod "GET" ;
+.

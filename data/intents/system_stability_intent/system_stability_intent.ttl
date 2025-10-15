@@ -1,0 +1,20 @@
+@prefix icm:  <http://tio.models.tmforum.org/tio/v3.6.0/IntentCommonModel/> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix iexp: <http://intendproject.eu/iexplain#> .
+
+iexp:I4 a icm:Intent ;
+    dct:description "Maintain system stability with minimal recurring warnings"@en ;
+.
+
+iexp:DE4 a icm:DeliveryExpectation ;
+    icm:target iexp:compute-system ;
+    dct:description "Recurring warnings must not exceed threshold"@en ;
+.
+
+iexp:C4 a icm:Condition ;
+    dct:description "Warning repetition limit"@en ;
+    iexp:warningRepetitionLimit "5"^^xsd:integer ;
+    iexp:timeWindow "600"^^xsd:integer ; # 10 minutes in seconds
+.
