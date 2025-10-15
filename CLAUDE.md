@@ -117,6 +117,58 @@ Supervisor agent coordinates specialist agents:
 5. **Simple then complex**: Start with simple implementations (keyword search, single agent) before adding complexity (vector search, hierarchical workflows)
 6. **Clear documentation**: Make sure the code is clearly and concisely documented. It should be easy to know what happens in the code and how it works.
 
+## Logging Best Practices
+
+The codebase uses Python's `logging` module for all internal operations:
+
+### When to Use Logging vs Print
+
+- **Use `logging`**: For all internal operations, debugging, status messages, and errors in library code
+- **Use `print()`**: Only in CLI scripts for direct user feedback during command execution
+
+### Logging Setup
+
+The main entry point (`src/frontend/app.py`) configures logging for the entire application:
+
+```python
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('iexplain.log'),
+        logging.StreamHandler()
+    ]
+)
+```
+
+### Adding Logging to New Modules
+
+In each Python module:
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Then use:
+logger.info("Info message")
+logger.warning("Warning message")
+logger.error("Error message")
+logger.debug("Debug message")
+```
+
+### Log Levels
+
+- `DEBUG`: Detailed diagnostic information (not logged by default)
+- `INFO`: General informational messages about operations
+- `WARNING`: Something unexpected but recoverable
+- `ERROR`: Errors that prevent specific operations
+- `CRITICAL`: System-level failures
+
+See `CLEANUP_SUMMARY.md` for details on the logging implementation.
+
 ## Implementation Status
 
 ✅ **Phase 1 Complete**: Foundation (LLMClient, Agent, SingleAgentWorkflow, basic tools)

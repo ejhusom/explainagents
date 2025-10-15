@@ -6,8 +6,11 @@ Supports simple keyword-based and optional vector-based indexing.
 from typing import List, Dict, Optional, Set
 from collections import defaultdict
 import re
+import logging
 import numpy as np
 from sentence_transformers import SentenceTransformer
+
+logger = logging.getLogger(__name__)
 
 
 class LogIndexer:
@@ -103,9 +106,9 @@ class LogIndexer:
             texts.append(text)
 
         # Generate embeddings for all documents
-        print(f"Generating embeddings for {len(texts)} documents...")
+        logger.info(f"Generating embeddings for {len(texts)} documents...")
         self.embeddings = self.model.encode(texts, show_progress_bar=True)
-        print(f"Embeddings shape: {self.embeddings.shape}")
+        logger.info(f"Embeddings shape: {self.embeddings.shape}")
 
     def search(self, query: str, k: int = 10, operator: str = "AND") -> List[Dict]:
         """

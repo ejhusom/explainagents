@@ -5,7 +5,10 @@ Supports hybrid search combining keyword and vector methods.
 """
 
 from typing import List, Dict, Optional, Tuple
+import logging
 from .indexer import LogIndexer
+
+logger = logging.getLogger(__name__)
 
 
 class Retriever:
@@ -77,7 +80,7 @@ class Retriever:
             if self.overlap >= self.chunk_size:
                 start_idx = end_idx
 
-        print(f"Created {len(self.chunks)} chunks from {num_docs} documents")
+        logger.info(f"Created {len(self.chunks)} chunks from {num_docs} documents")
 
     def retrieve(
         self,

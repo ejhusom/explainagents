@@ -7,7 +7,10 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 import json
+import logging
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -287,7 +290,7 @@ class BackendInterface:
                         intent_data = self.load_intent(str(ttl_file))
                         intents.append(intent_data)
                     except Exception as e:
-                        print(f"Error loading intent {item.name}: {e}")
+                        logger.warning(f"Error loading intent {item.name}: {e}")
 
         return intents
 
