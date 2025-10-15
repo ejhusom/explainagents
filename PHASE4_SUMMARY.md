@@ -167,12 +167,74 @@ experiments/
 
 ## Evaluation Methodology
 
-### Ground Truth Annotation Process:
-1. Identify diverse scenarios in logs
-2. Extract key events with timestamps and evidence
-3. Document expected metrics and anomalies
-4. Define expected agent findings
-5. Specify intent compliance status
+### Ground Truth Annotation Process
+
+**Overview:**
+Ground truth scenarios are **manually extracted and annotated from real production logs** (not hypothetical/generated). This provides authentic reference data for evaluating agent performance.
+
+**Source Material:**
+- Real OpenStack cloud infrastructure logs from Utah CloudLab (2017)
+- Log file: `data/logs/openstack-full/OpenStack_2k.log`
+- Contains actual VM lifecycle events, API calls, system warnings, and operational data
+
+**Step-by-Step Annotation Process:**
+
+1. **Identify Diverse Scenarios**
+   - Read through production logs to find interesting event sequences
+   - Look for: normal operations, anomalies, performance issues, error patterns
+   - Select scenarios that test different aspects of log analysis
+   - Aim for diverse scenario types (lifecycle, errors, warnings, performance, etc.)
+
+2. **Extract Key Events with Evidence**
+   - Identify critical log entries that define the scenario
+   - Record exact line numbers from the log file
+   - Copy full log text as "evidence" (timestamp, level, component, message)
+   - Document: event type, timestamp, instance ID, description
+   - Example from scenario_001, line 7:
+     ```
+     "line_number": 7,
+     "evidence": "nova-compute.log.1.2017-05-16_13:55:31 2017-05-16 00:00:04.500 2931 INFO..."
+     ```
+
+3. **Calculate Quantitative Metrics**
+   - Extract timing data from timestamps (build time, spawn time, etc.)
+   - Count occurrences (warning frequency, API calls)
+   - Identify resource allocations (CPU, RAM, disk)
+   - Record exact values the agent should detect
+
+4. **Document Anomalies (If Present)**
+   - Identify unusual patterns (recurring warnings, state mismatches)
+   - Classify severity (low, medium, high)
+   - Determine impact and potential causes
+   - Link to evidence in logs
+
+5. **Evaluate Intent Compliance**
+   - Map scenario to relevant intent specifications
+   - Determine compliance status: COMPLIANT, DEGRADED, or NON_COMPLIANT
+   - Provide rationale based on observed metrics vs expected thresholds
+   - Document which intent rules apply
+
+6. **Define Expected Agent Findings**
+   - List key insights an agent should discover
+   - Include both obvious facts and subtle patterns
+   - Specify causal relationships and root causes
+   - These become the evaluation criteria
+
+**Time Investment:**
+- Schema design: 30 minutes (one-time)
+- Each scenario annotation: 20-30 minutes
+- Domain expertise required: Understanding of the system being analyzed (OpenStack, networking, etc.)
+
+**Example Scenarios Created:**
+- **scenario_001**: Normal VM lifecycle (lines 1-50) - COMPLIANT
+- **scenario_002**: Image cache cleanup issue (lines 50-150) - DEGRADED
+
+**Best Practices:**
+- Use exact line numbers for traceability
+- Quote full log lines in "evidence" fields
+- Include both positive and negative examples (normal + anomalous)
+- Document what an agent should AND shouldn't find
+- Test that scenarios are representative of real analysis tasks
 
 ### Evaluation Process:
 1. Run experiment on scenario

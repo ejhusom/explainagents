@@ -59,21 +59,33 @@ The system is organized into distinct layers with clear separation of concerns:
 
 ### Data Layer (`src/data/`)
 - **Parsers**: Support for text, CSV, JSON, and RDF/TTL formats
-- **Indexer**: Two modes - simple keyword-based or vector embedding-based (sentence-transformers)
+- **Indexer**: Three modes - simple keyword-based, vector embedding-based, or hybrid (sentence-transformers)
 - **Retriever**: Provides chunked retrieval with context windows for large logs
 
-### Agent Specializations (`src/agents/`)
-Specialized agents for multi-agent workflows:
-- Retrieval agent: Searches and extracts relevant log entries
-- Analysis agent: Identifies patterns, anomalies, and state changes
-- Intent parser agent: Parses TMForum Intent Management specifications
+### Agent Specialization (Configuration-Driven)
+**Note**: iExplain uses a **generic base Agent class** (`src/core/agent.py`) that can take any role based on configuration. Agent specialization is achieved through:
+- **System prompts**: Defined in YAML config files (e.g., `config/sequential_two_agent.yaml`)
+- **Tool sets**: Each agent gets specific tools (retrieval, analysis, file operations)
+- **Parameters**: max_tokens, temperature, model selection
+
+**Example agent types** (defined via config, not separate classes):
+- Retrieval agent: Uses `search_logs`, `get_log_context` tools
+- Analysis agent: Uses analysis tools, focuses on pattern detection
+- Intent parser agent: Specialized prompt for TMForum specifications
 - Synthesis agent: Combines results into coherent explanations
+
+**Why this approach?**
+- More flexible: Change agent behavior by editing YAML, not code
+- Better for research: Easy to experiment with different prompts/tools
+- Cleaner codebase: One Agent class instead of multiple subclasses
+- Configuration-driven: Follows project design principle #1
 
 ### Tools (`src/tools/`)
 Function calling tools for agents:
-- File operations: `read_file`, `list_files`
-- Search operations: `search_logs`, `get_log_context`
-- Analysis operations: `detect_anomalies`, `extract_timestamps`, `compute_event_frequency`
+- **File operations**: `read_file`, `list_files`
+- **Search operations**: `search_logs`, `get_log_context`
+- **Analysis operations**: `detect_anomalies`, `extract_timestamps`, `compute_event_frequency`
+- **Tool registry**: Maps tool names to implementations for agent use
 
 ### Evaluation (`src/evaluation/`)
 - **Logger**: Comprehensive execution logging to `execution_log.jsonl`, `metrics.json`, `result.json`
@@ -233,7 +245,39 @@ See `PHASE6_SUMMARY.md` for complete frontend documentation.
 - Sample logs in `data/logs/openstack/*.log` (OpenStack format)
 - Full datasets should go in `data/logs/`
 - Sample intents in `data/intents/` (both in natural language and .ttl format)
+- Ground truth scenarios in `data/ground_truth/` (manually annotated evaluation data)
 - Experiment results output to `experiments/results/<experiment_name>/`
+
+## Ground Truth Annotations
+
+### Overview
+Ground truth scenarios are **manually extracted from real production logs** (not generated/hypothetical). They provide gold standard reference data for evaluating agent performance.
+
+### Current Status
+- **Created**: 2 scenarios (scenario_001, scenario_002)
+- **Target**: 10-15 scenarios for comprehensive evaluation
+- **Source**: OpenStack cloud logs from Utah CloudLab (2017)
+
+### Creating New Scenarios
+See [GROUND_TRUTH_GUIDE.md](GROUND_TRUTH_GUIDE.md) for the complete step-by-step annotation process.
+
+**Quick overview:**
+1. **Identify** interesting event sequences in logs (VM lifecycle, errors, warnings)
+2. **Extract** key events with exact line numbers and timestamps
+3. **Document** evidence by quoting full log lines
+4. **Calculate** metrics from log data (timing, counts, resources)
+5. **Identify** anomalies and their root causes (if present)
+6. **Evaluate** intent compliance (COMPLIANT/DEGRADED/NON_COMPLIANT)
+7. **Define** expected agent findings (what should be discovered)
+
+**Time per scenario:** 20-30 minutes
+**Skills required:** Domain knowledge of the system being analyzed (OpenStack, networking, etc.)
+
+### Schema Location
+Ground truth JSON schema is documented in:
+- `GROUND_TRUTH_GUIDE.md` (full specification)
+- `data/ground_truth/scenario_001_vm_lifecycle.json` (example - normal operation)
+- `data/ground_truth/scenario_002_image_cache_warnings.json` (example - degraded state)
 
 ## Dependencies
 

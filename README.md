@@ -3,6 +3,8 @@
 > **🚀 Quick Start**: See [QUICKSTART.md](QUICKSTART.md) to get up and running in 5 minutes!
 >
 > **📖 Full Documentation**: Complete Phase 6 summary in [PHASE6_SUMMARY.md](PHASE6_SUMMARY.md)
+>
+> **🔬 Ground Truth Guide**: Learn how to create evaluation scenarios in [GROUND_TRUTH_GUIDE.md](GROUND_TRUTH_GUIDE.md)
 
 ## Project Overview
 
@@ -41,41 +43,44 @@
 
 ```
 iExplain/
-├── config/                    # Experiment configurations
-│   ├── prompts/              # Prompt templates
-│   └── *.yaml                # Experiment configs
+├── config/                    # Experiment configurations (YAML)
+│   ├── *.yaml                # Experiment configs (define agents via prompts & tools)
+│   └── frontend_config.yaml  # Frontend settings
 ├── src/
 │   ├── core/
-│   │   ├── agent.py          # Base Agent class
-│   │   ├── orchestrator.py   # Workflow implementations
-│   │   └── llm_client.py     # LLM provider abstraction
+│   │   ├── agent.py          # Base Agent class (generic, config-driven)
+│   │   ├── orchestrator.py   # Workflow implementations (Single, Sequential, Hierarchical)
+│   │   ├── llm_client.py     # LLM provider abstraction (LiteLLM)
+│   │   └── config_loader.py  # YAML configuration loader
 │   ├── data/
-│   │   ├── indexer.py        # Log indexing (keyword/vector)
-│   │   ├── parsers.py        # Format parsers
-│   │   └── retriever.py      # Retrieval interface
-│   ├── agents/               # Specialized agent implementations
-│   │   ├── retrieval.py
-│   │   ├── analysis.py
-│   │   ├── intent_parser.py
-│   │   └── synthesis.py
-│   ├── tools/                # Tool implementations
-│   │   ├── file_tools.py
-│   │   ├── search_tools.py
-│   │   └── analysis_tools.py
+│   │   ├── indexer.py        # Log indexing (keyword/vector/hybrid)
+│   │   ├── parsers.py        # Format parsers (text, CSV, JSON, TTL)
+│   │   └── retriever.py      # Retrieval with chunking & context
+│   ├── tools/                # Tool implementations (function calling)
+│   │   ├── file_tools.py     # File operations
+│   │   ├── search_tools.py   # Log search & context
+│   │   ├── analysis_tools.py # Anomaly detection, timestamps
+│   │   └── tool_registry.py  # Tool registration
 │   ├── evaluation/
-│   │   ├── logger.py         # Execution logging
+│   │   ├── logger.py         # Execution logging (JSONL)
 │   │   ├── metrics.py        # Evaluation metrics
 │   │   └── compare.py        # Result comparison
-│   └── workflows/            # Workflow pattern implementations
-│       ├── single_agent.py
-│       ├── sequential.py
-│       └── hierarchical.py
+│   ├── frontend/             # Production Streamlit UI
+│   │   ├── app.py           # Main entry point
+│   │   ├── pages/           # 5 page modules
+│   │   ├── backend_interface.py
+│   │   ├── storage.py       # SQLite persistence
+│   │   └── visualizations.py
+│   └── dev_ui/              # Development experiment runner
+│       └── experiment_runner.py
 ├── experiments/
-│   ├── run_experiment.py     # Main execution script
+│   ├── run_experiment.py     # CLI experiment runner
+│   ├── evaluate_experiment.py # Evaluation CLI
 │   └── results/              # Output directory
 ├── data/                     # Input data
-│   ├── logs/
-│   └── intents/
+│   ├── logs/                # System logs
+│   ├── intents/             # TMForum intent specs
+│   └── ground_truth/        # Evaluation scenarios
 └── tests/
 ```
 
@@ -316,12 +321,12 @@ evaluation:
 4. Implement execution logging
 5. Compare single vs sequential results
 
-### Phase 4: Evaluation (Week 4-5)
-1. Implement evaluation metrics
-2. Create ground truth annotations (10-20 sequences)
-3. Run baseline experiments
-4. Implement result comparison tools
-5. Generate initial results
+### Phase 4: Evaluation (Week 4-5) ✅
+1. ✅ Implement evaluation metrics
+2. ⚠️ Create ground truth annotations (2 of 10-15 complete - see [GROUND_TRUTH_GUIDE.md](GROUND_TRUTH_GUIDE.md))
+3. ⚠️ Run baseline experiments (infrastructure ready)
+4. ✅ Implement result comparison tools
+5. ⚠️ Generate initial results (partial)
 
 ### Phase 5: Advanced Features (Week 5-6)
 1. Implement `HierarchicalWorkflow`
