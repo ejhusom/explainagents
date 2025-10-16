@@ -51,6 +51,8 @@ class Agent:
         """
         Execute agent on a message with optional context.
 
+        Agents may call tools as needed. An agent can call multiple tools in a single run. After an agent has called tools, the results are fed into the next iteration, meaning that an agent cannot respond directly after calling tools.
+
         Args:
             message: User message/task
             context: Optional context dict (e.g., from previous agents)

@@ -175,6 +175,8 @@ class HierarchicalWorkflow(Workflow):
     2. Creates an execution plan (which agents to use, what subtasks)
     3. Delegates subtasks to specialist agents
     4. Synthesizes results from specialists into final answer
+
+    # TODO: Currently, specialists are executed sequentially. Future: actually follow plan from supervisor.
     """
 
     def execute(self, task: str, data: Dict) -> Dict[str, Any]:
@@ -241,6 +243,7 @@ Then wait for their results before synthesizing."""
         self._log_step("supervisor_planning", supervisor_name, {"task": planning_task, "context": context}, None)
 
         planning_result = supervisor.run(planning_task, context=context)
+        breakpoint()
 
         self._log_step("supervisor_plan_complete", supervisor_name, None, planning_result)
 
@@ -257,7 +260,7 @@ Then wait for their results before synthesizing."""
 
         # Execute each specialist mentioned in agent_sequence
         # For now, we execute all specialists sequentially
-        # Future: parse plan to be more dynamic
+        # TODO: parse plan to be more dynamic
         for specialist_name in specialist_names:
             if specialist_name not in self.agents:
                 continue
@@ -332,8 +335,8 @@ Specialist results:
         for name in specialist_names:
             if name in self.agents:
                 agent = self.agents[name]
-                # Get first line or two of system prompt as capability description
+                # Get first two line of system prompt as capability description
                 prompt_lines = agent.config.system_prompt.strip().split('\n')
-                capability = prompt_lines[0] if prompt_lines else f"{name} specialist"
+                capability = " ".join(prompt_lines[:2]) if prompt_lines else f"{name} specialist"
                 capabilities.append(f"- {name}: {capability}")
         return '\n'.join(capabilities)

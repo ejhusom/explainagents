@@ -3,6 +3,7 @@ Main experiment runner script.
 Loads configuration, initializes system, executes workflow, saves results.
 """
 
+import logging
 import sys
 import os
 import json
@@ -73,46 +74,47 @@ def main():
         print(f"✗ Error initializing LLM client: {e}")
         sys.exit(1)
 
-    # Load and index log data
-    print("\nLoading and indexing log data...")
-    log_source = config["data"]["log_source"]
-    try:
-        # Detect log format and parse
-        if log_source.endswith('.csv'):
-            print("  Detected CSV format")
-            documents = parse_csv(log_source)
-        elif log_source.endswith('.json') or log_source.endswith('.jsonl'):
-            print("  Detected JSON format")
-            documents = parse_json(log_source)
-        else:
-            # Default to text log format
-            print("  Detected text log format")
-            documents = parse_text_log(log_source)
+    # TODO: Data loading should be handled in a more elegant way, possibly within the workflow or agents themselves.
+    # # Load and index log data
+    # print("\nLoading and indexing log data...")
+    # log_source = config["data"]["log_source"]
+    # try:
+    #     # Detect log format and parse
+    #     if log_source.endswith('.csv'):
+    #         print("  Detected CSV format")
+    #         documents = parse_csv(log_source)
+    #     elif log_source.endswith('.json') or log_source.endswith('.jsonl'):
+    #         print("  Detected JSON format")
+    #         documents = parse_json(log_source)
+    #     else:
+    #         # Default to text log format
+    #         print("  Detected text log format")
+    #         documents = parse_text_log(log_source)
 
-        print(f"  ✓ Parsed {len(documents)} log entries")
+    #     print(f"  ✓ Parsed {len(documents)} log entries")
 
-        # Create indexer and index documents
-        index_method = config["data"].get("index_method", "simple")
-        indexer = LogIndexer(method=index_method)
-        indexer.index(documents)
-        print(f"  ✓ Created {index_method} index with {indexer.num_documents} documents")
+    #     # Create indexer and index documents
+    #     index_method = config["data"].get("index_method", "simple")
+    #     indexer = LogIndexer(method=index_method)
+    #     indexer.index(documents)
+    #     print(f"  ✓ Created {index_method} index with {indexer.num_documents} documents")
 
-        # Create retriever with chunking
-        chunk_size = config["data"].get("chunk_size", 1000)
-        chunk_overlap = config["data"].get("chunk_overlap", 100)
-        retriever = Retriever(indexer, chunk_size=chunk_size, overlap=chunk_overlap)
-        print(f"  ✓ Created retriever with chunk_size={chunk_size}, overlap={chunk_overlap}")
-        print(f"  ✓ Split into {len(retriever.chunks)} chunks")
+    #     # Create retriever with chunking
+    #     chunk_size = config["data"].get("chunk_size", 1000)
+    #     chunk_overlap = config["data"].get("chunk_overlap", 100)
+    #     retriever = Retriever(indexer, chunk_size=chunk_size, overlap=chunk_overlap)
+    #     print(f"  ✓ Created retriever with chunk_size={chunk_size}, overlap={chunk_overlap}")
+    #     print(f"  ✓ Split into {len(retriever.chunks)} chunks")
 
-        # Set retriever in search_tools module
-        search_tools.set_retriever(retriever)
-        print(f"✓ Data layer initialized for: {log_source}")
+    #     # Set retriever in search_tools module
+    #     search_tools.set_retriever(retriever)
+    #     print(f"✓ Data layer initialized for: {log_source}")
 
-    except Exception as e:
-        print(f"✗ Error loading and indexing logs: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+    # except Exception as e:
+    #     print(f"✗ Error loading and indexing logs: {e}")
+    #     import traceback
+    #     traceback.print_exc()
+    #     sys.exit(1)
 
     # Initialize agents
     print("\nInitializing agents...")
@@ -151,6 +153,7 @@ def main():
             workflow = SequentialWorkflow(agents, config["workflow"])
         elif workflow_type == "hierarchical":
             workflow = HierarchicalWorkflow(agents, config["workflow"])
+            logging.info("Hierarchical workflow is experimental and may be unstable.")
         else:
             raise ValueError(f"Unsupported workflow type: {workflow_type}")
 

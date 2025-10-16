@@ -53,6 +53,8 @@ def test_search_logs():
         indexer = LogIndexer(method="simple", split_method="whitespace")
         indexer.index(documents)
 
+        retriever = Retriever(indexer=indexer, documents=documents)
+
         # Search for common term
         results = search_logs("INFO", k=5)
         breakpoint()
@@ -96,5 +98,4 @@ def test_get_tools_for_agent_invalid():
 
 
 if __name__ == "__main__":
-    # pytest.main([__file__, "-v"])
-    test_search_logs()
+    pytest.main([__file__, "-v"])
