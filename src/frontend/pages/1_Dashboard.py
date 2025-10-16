@@ -78,12 +78,12 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     if st.button("📁 Analyze New Logs", use_container_width=True):
-        st.switch_page("pages/2_📁_Analyze_Logs.py")
+        st.switch_page("pages/2_Analyze_Logs.py")
 
 with col2:
     if st.button("📚 Browse Intents", use_container_width=True):
-        st.switch_page("pages/3_📚_Intent_Library.py")
+        st.switch_page("pages/3_Intent_Library.py")
 
 with col3:
     if st.button("📜 View History", use_container_width=True):
-        st.switch_page("pages/4_📜_History.py")
+        st.switch_page("pages/4_History.py")

@@ -19,7 +19,7 @@ class LogIndexer:
     Can be extended with vector-based search in the future.
     """
 
-    def __init__(self, method: str = "simple", model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, method: str = "simple", split_method: str = "whitespace", model_name: str = "all-MiniLM-L6-v2"):
         """
         Initialize indexer.
 
@@ -34,6 +34,9 @@ class LogIndexer:
         self.documents: List[Dict] = []
         self.inverted_index: Dict[str, List[int]] = defaultdict(list)
         self.num_documents = 0
+
+        if method == "simple":
+            self.split_method = split_method
 
         if method == "vector":
             # Initialize sentence transformer model
@@ -92,8 +95,24 @@ class LogIndexer:
         # Convert to lowercase
         text = text.lower()
 
-        # Split on non-alphanumeric characters
-        tokens = re.findall(r'\b\w+\b', text)
+        if self.split_method == "nonalphanumeric":
+            # Split on non-alphanumeric characters
+            tokens = re.findall(r'\b\w+\b', text)
+        elif self.split_method == "whitespace":
+            # Split on whitespace, and strip non-alphanumeric characters from beginning and end
+            tokens = [token.strip('.,!?:;"\'()[]{}<>') for token in text.split()]
+
+            # Remove empty tokens
+            tokens = [token for token in tokens if token]
+
+            # DEBUG: Print tokens that are only non-alphanumeric after stripping
+            # print([token for token in tokens if not re.search(r'\w', token)])
+
+            # Remove tokens that are only non-alphanumeric after stripping
+            tokens = [token for token in tokens if re.search(r'\w', token)]
+
+        else:
+            raise ValueError(f"Unknown split method: {split_method}")
 
         return tokens
 

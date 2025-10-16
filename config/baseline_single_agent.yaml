@@ -68,7 +68,8 @@ agents:
     temperature: null  # Uses llm.temperature if null, can override per-agent
 
 data:
-  log_source: "data/logs/openstack-medium/openstack_200.log"
+  # log_source: "data/logs/openstack-medium/openstack_200.log"
+  log_source: "data/logs/openstack/nova-api.log"
   intent_source: "data/intents/nova_api_latency_intent/nova_api_latency_intent.ttl"
   # intent_source: null  # "data/intents/synthetic_intent_1.json"
   index_method: "simple"  # or "vector"
