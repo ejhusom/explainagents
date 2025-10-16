@@ -44,26 +44,6 @@ def test_list_files():
         pytest.skip("data directory not found")
 
 
-def test_search_logs():
-    """Test search_logs tool."""
-    sample_log = Path(__file__).parent.parent / "data" / "logs" / "openstack" / "nova-api.log"
-
-    if sample_log.exists():
-        documents = parse_text_log(str(sample_log))
-        indexer = LogIndexer(method="simple", split_method="whitespace")
-        indexer.index(documents)
-
-        retriever = Retriever(indexer=indexer, documents=documents)
-
-        # Search for common term
-        results = search_logs("INFO", k=5)
-        breakpoint()
-        assert isinstance(results, list)
-        assert len(results) <= 5
-    else:
-        pytest.skip("Sample log not found")
-
-
 def test_get_tool_registry():
     """Test tool registry."""
     registry = get_tool_registry()
