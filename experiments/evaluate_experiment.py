@@ -56,12 +56,10 @@ def main():
 
         if "event_detection" in metrics:
             print("\nAccuracy Metrics:")
-            print(f"  Event Detection:")
-            print(f"    - Recall: {metrics['event_detection']['recall']:.2%}")
-            print(f"    - Precision: {metrics['event_detection']['precision']:.2%}")
-            print(f"    - F1 Score: {metrics['event_detection']['f1_score']:.2%}")
+            print(f"  Event Detection Accuracy: {metrics['event_detection']['accuracy']:.2%}")
 
-            print(f"  Timeline Accuracy: {metrics['timeline_accuracy']['sequence_correct']:.2%}")
+            print(f"  Timeline Sequence Accuracy: {metrics['timeline_sequence']['accuracy']:.2%}")
+            print(f"  No. events in sequence: {metrics['timeline_sequence']['events_in_sequence']:}")
             print(f"  Metrics Accuracy: {metrics['metrics_accuracy']['accuracy']:.2%}")
             print(f"  Anomaly Detection: {metrics['anomaly_detection']['detection_rate']:.2%}")
             print(f"  Comprehensiveness: {metrics['comprehensiveness_score']:.2%}")

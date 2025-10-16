@@ -4,6 +4,8 @@
 
 Phase 4 established the foundation for rigorous evaluation of agent performance. While not fully complete (would require 10-15 ground truth annotations), the core evaluation infrastructure is operational and tested.
 
+**October 2025 Update**: Metrics redesigned with structured JSON output support, fixing evaluation accuracy from ~0% to functional levels. See METRICS_REDESIGN.md for full details.
+
 ## What Was Accomplished
 
 ### 1. Ground Truth Annotations (✅ Foundation Complete)
@@ -344,6 +346,44 @@ python experiments/evaluate_experiment.py compare \
   --output workflow_comparison.csv
 ```
 
+## October 2025 Metrics Redesign
+
+### Problem Discovered
+
+Original metrics showed ~0% accuracy due to structural mismatch:
+- Ground truth: Structured JSON with specific fields
+- Agent output: Free-form narrative text
+- Evaluation: Fragile keyword matching that failed
+
+### Solution Implemented
+
+**Hybrid Evaluation System:**
+1. **Structured evaluation** (preferred): Parse JSON from agent output, compare directly
+2. **Freeform evaluation** (fallback): Improved keyword matching for backward compatibility
+
+**Key Changes:**
+- Created `src/evaluation/schemas.py` with Pydantic models for structured output
+- Rewrote `calculate_event_detection_accuracy()` with hybrid approach
+- Rewrote `calculate_timeline_sequence_accuracy()` with binary chronological check
+- Rewrote `calculate_metrics_accuracy()` with fuzzy name matching and value tolerance
+- Updated all agent prompts to request structured JSON output
+- All metrics now return `method_used` field ("structured" or "freeform")
+
+**Test Results (scenario_001 with gpt-4o-mini):**
+```
+Event Detection Accuracy:    33.33% [method: structured] ✅
+Timeline Sequence Accuracy:  100.00% [method: structured] ✅
+Metrics Accuracy:            0.00% [method: structured] ✅
+```
+
+All three metrics successfully used structured evaluation. Scores now reflect actual agent performance, not evaluation failures.
+
+**Documentation:**
+- `METRICS_REDESIGN.md` - Complete redesign documentation
+- `GROUND_TRUTH_GUIDE.md` - Updated with structured output notes
+- `src/evaluation/schemas.py` - Pydantic models and JSON schema
+- All config files - Updated with structured output prompts
+
 ## Documentation
 
 Evaluation metrics are well-documented in code with:
@@ -351,5 +391,6 @@ Evaluation metrics are well-documented in code with:
 - Parameter descriptions
 - Return value specifications
 - Usage examples
+- Method tracking (structured vs freeform)
 
-See `src/evaluation/metrics.py` for full metric definitions.
+See `src/evaluation/metrics.py` for full metric definitions and `METRICS_REDESIGN.md` for implementation details.

@@ -366,13 +366,19 @@ Before finalizing a ground truth annotation:
 2. **Evaluate against your ground truth**:
    ```bash
    python experiments/evaluate_experiment.py eval \
-     --experiment results/your_experiment.json \
+     --experiment experiments/results/your_experiment.json \
      --ground-truth data/ground_truth/your_scenario.json
    ```
 
 3. **Review metrics**: Did the agent find what you expected?
+   - Event Detection Accuracy: % of key events the agent found
+   - Timeline Sequence Accuracy: Whether events appear in correct chronological order
+   - Metrics Accuracy: % of quantitative metrics correctly extracted
+   - Method Used: "structured" (JSON output) or "freeform" (text parsing)
 
 4. **Refine**: Adjust expected findings based on what's realistic for agents to detect
+
+**Note on Structured Output**: As of October 2025, agents are configured to output structured JSON followed by narrative explanation. This enables more accurate evaluation compared to pure text parsing. The evaluation system automatically detects whether the agent used structured or freeform output and reports the method used. See `METRICS_REDESIGN.md` for details.
 
 ## File Naming Convention
 

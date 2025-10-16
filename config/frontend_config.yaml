@@ -29,8 +29,8 @@ workflow:
 
 # LLM defaults
 llm:
-  default_provider: "anthropic"
-  default_model: "claude-sonnet-4-20250514"
+  default_provider: "ollama"
+  default_model: "gpt-oss"
   default_max_tokens: 4096
   default_temperature: 0.7
 

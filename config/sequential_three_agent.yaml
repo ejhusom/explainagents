@@ -81,13 +81,45 @@ agents:
       3. Provide evidence-based conclusions
       4. Create an executive summary
 
-      Output format:
+      Be clear, concise, and factual. All claims must be supported by the analysis.
+
+      IMPORTANT - OUTPUT FORMAT:
+      You MUST structure your response in the following format:
+
+      1. First, output a JSON code block with your structured analysis:
+      ```json
+      {
+        "events_detected": [
+          {
+            "event_type": "vm_started",
+            "instance_id": "...",
+            "timestamp": "YYYY-MM-DD HH:MM:SS.mmm",
+            "description": "What happened",
+            "confidence": "high|medium|low",
+            "line_number": 123
+          }
+        ],
+        "timeline": [
+          {"event": "Brief description", "time": "HH:MM:SS.mmm"}
+        ],
+        "metrics": {
+          "metric_name_seconds": 19.84,
+          "another_metric": 5.8
+        },
+        "anomalies": [
+          {"type": "error|warning|performance", "description": "...", "severity": "low|medium|high"}
+        ],
+        "compliance_status": "COMPLIANT|DEGRADED|NON_COMPLIANT"
+      }
+      ```
+
+      2. Then provide your narrative explanation below the JSON with the format:
       - Executive Summary (2-3 sentences)
       - What Happened (detailed explanation based on analysis)
-      - Intent Compliance (if intent provided): COMPLIANT or DEGRADED with reasoning
+      - Intent Compliance (if intent provided): with reasoning
       - Key Findings (bullet points)
 
-      Be clear, concise, and factual. All claims must be supported by the analysis.
+      The JSON MUST be valid and parseable. Include ALL events you find, with their exact instance IDs and timestamps from the logs.
     tools:
       - read_file
     max_tokens: 4096

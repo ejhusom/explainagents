@@ -1,11 +1,17 @@
 """
 Evaluation metrics for assessing agent performance against ground truth.
+
+Supports both structured JSON output and free-form text analysis.
+Structured output is preferred for accuracy.
 """
 
 import json
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def load_ground_truth(ground_truth_path: str) -> Dict:
@@ -22,6 +28,58 @@ def load_ground_truth(ground_truth_path: str) -> Dict:
         return json.load(f)
 
 
+def parse_structured_output(agent_output: str) -> Tuple[Optional[Dict], str]:
+    """
+    Parse structured JSON output from agent response.
+
+    Agents are instructed to output JSON in a code block, followed by narrative.
+    This function extracts the JSON and returns both structured data and remaining text.
+
+    Args:
+        agent_output: Full agent response text
+
+    Returns:
+        Tuple of (structured_data_dict, narrative_text)
+        If no JSON found, returns (None, original_text)
+    """
+    # Try to find JSON in code blocks first
+    json_pattern = r'```json\s*(\{.*?\})\s*```'
+    matches = re.findall(json_pattern, agent_output, re.DOTALL)
+
+    if matches:
+        try:
+            # Parse the first JSON block found
+            structured_data = json.loads(matches[0])
+            # Remove the JSON block from output to get narrative
+            narrative = re.sub(json_pattern, '', agent_output, count=1, flags=re.DOTALL).strip()
+            logger.info("Successfully parsed structured JSON output from agent")
+            return structured_data, narrative
+        except json.JSONDecodeError as e:
+            logger.warning(f"Found JSON block but failed to parse: {e}")
+
+    # Try to find JSON without code blocks
+    try:
+        # Look for { ... } pattern
+        json_pattern_plain = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+        matches = re.findall(json_pattern_plain, agent_output, re.DOTALL)
+        for match in matches:
+            try:
+                structured_data = json.loads(match)
+                # Check if it looks like our expected structure
+                if 'events_detected' in structured_data or 'timeline' in structured_data:
+                    narrative = agent_output.replace(match, '').strip()
+                    logger.info("Successfully parsed structured JSON (no code block) from agent")
+                    return structured_data, narrative
+            except json.JSONDecodeError:
+                continue
+    except Exception as e:
+        logger.debug(f"No valid JSON found in agent output: {e}")
+
+    # No structured data found
+    logger.info("No structured JSON found, will use free-form text evaluation")
+    return None, agent_output
+
+
 def calculate_event_detection_accuracy(
     agent_output: str,
     ground_truth: Dict
@@ -30,51 +88,283 @@ def calculate_event_detection_accuracy(
     Calculate event detection accuracy.
 
     Measures what percentage of key ground truth events the agent mentioned.
+    Prefers structured JSON output but falls back to improved keyword matching.
 
     Args:
-        agent_output: Agent's final explanation
+        agent_output: Agent's final explanation (may include JSON)
         ground_truth: Ground truth annotation
 
     Returns:
-        Dict with accuracy, events_found, events_total
+        Dict with accuracy, events_found, events_total, method_used
     """
     key_events = ground_truth.get("key_events", [])
 
     if not key_events:
-        return {"accuracy": 0.0, "events_found": 0, "events_total": 0}
+        return {
+            "accuracy": 0.0,
+            "events_found": 0,
+            "events_total": 0,
+            "method_used": "none"
+        }
 
-    # Extract mentioned events from agent output (simple keyword matching)
-    output_lower = agent_output.lower()
-    events_found = 0
+    # Try to parse structured output first
+    structured_data, narrative = parse_structured_output(agent_output)
 
-    for event in key_events:
-        event_type = event.get("event_type", "").replace("_", " ")
-        instance_id = event.get("instance_id", "")
-        description_words = event.get("description", "").lower().split()
-
-        # Check if key terms from this event appear in output
-        matches = 0
-        if event_type and event_type in output_lower:
-            matches += 1
-        if instance_id and instance_id[:8] in output_lower:  # Check first 8 chars of ID
-            matches += 1
-        if any(word in output_lower for word in description_words if len(word) > 4):
-            matches += 1
-
-        # Consider event "found" if at least 2 indicators present
-        if matches >= 2:
-            events_found += 1
+    if structured_data and "events_detected" in structured_data:
+        # Structured evaluation (preferred)
+        events_found = _evaluate_events_structured(
+            structured_data["events_detected"],
+            key_events
+        )
+        method = "structured"
+    else:
+        # Free-form text evaluation (fallback)
+        events_found = _evaluate_events_freeform(
+            agent_output.lower(),
+            key_events
+        )
+        method = "freeform"
 
     total_events = len(key_events)
-
-    # Calculate accuracy: what percentage of key events were detected?
     accuracy = events_found / total_events if total_events > 0 else 0.0
 
     return {
         "accuracy": accuracy,
         "events_found": events_found,
-        "events_total": total_events
+        "events_total": total_events,
+        "method_used": method
     }
+
+
+def _evaluate_events_structured(
+    agent_events: List[Dict],
+    ground_truth_events: List[Dict]
+) -> int:
+    """
+    Evaluate event detection using structured JSON output.
+
+    Matches events by event_type and instance_id (if present).
+
+    Args:
+        agent_events: List of events from agent's structured output
+        ground_truth_events: List of ground truth events
+
+    Returns:
+        Number of ground truth events found by agent
+    """
+    events_found = 0
+
+    for gt_event in ground_truth_events:
+        gt_type = gt_event.get("event_type", "")
+        gt_instance = gt_event.get("instance_id", "")
+
+        for agent_event in agent_events:
+            agent_type = agent_event.get("event_type", "")
+            agent_instance = agent_event.get("instance_id", "")
+
+            # Match by event type
+            type_match = (agent_type == gt_type) or \
+                        (agent_type.replace("_", " ") == gt_type.replace("_", " "))
+
+            # Match by instance ID (if present in both)
+            if gt_instance and agent_instance:
+                # Match first 8 chars of UUID (enough to be unique)
+                instance_match = gt_instance[:8].lower() in agent_instance.lower()
+            else:
+                instance_match = True  # If no instance ID, don't require it
+
+            if type_match and instance_match:
+                events_found += 1
+                break  # Found this event, move to next
+
+    logger.info(f"Structured evaluation: {events_found}/{len(ground_truth_events)} events detected")
+    return events_found
+
+
+def _evaluate_events_freeform(
+    output_lower: str,
+    ground_truth_events: List[Dict]
+) -> int:
+    """
+    Evaluate event detection using free-form text matching.
+
+    Uses improved keyword matching with fuzzy logic.
+    Less accurate than structured evaluation.
+
+    Args:
+        output_lower: Lowercased agent output text
+        ground_truth_events: List of ground truth events
+
+    Returns:
+        Number of ground truth events likely mentioned
+    """
+    events_found = 0
+
+    for event in ground_truth_events:
+        event_type = event.get("event_type", "").replace("_", " ").lower()
+        instance_id = event.get("instance_id", "")
+        description = event.get("description", "").lower()
+
+        # Extract significant keywords from description
+        desc_words = [w for w in description.split() if len(w) > 4]
+
+        # Count indicators
+        indicators = 0
+
+        # Check for event type (e.g., "vm started", "instance spawned")
+        if event_type and event_type in output_lower:
+            indicators += 1
+
+        # Check for instance ID (first 8 chars of UUID)
+        if instance_id and instance_id[:8].lower() in output_lower:
+            indicators += 2  # Stronger signal
+
+        # Check for description keywords (need at least 2)
+        keyword_matches = sum(1 for word in desc_words if word in output_lower)
+        if keyword_matches >= 2:
+            indicators += 1
+
+        # Consider event found if we have strong evidence
+        # Instance ID OR (event type + keywords)
+        if indicators >= 2:
+            events_found += 1
+
+    logger.info(f"Freeform evaluation: {events_found}/{len(ground_truth_events)} events detected")
+    return events_found
+
+
+def _evaluate_timeline_structured(
+    agent_timeline: List[Dict],
+    ground_truth_timeline: List[Dict]
+) -> float:
+    """
+    Evaluate timeline sequence using structured JSON output.
+
+    Compares the chronological order of events directly.
+    Returns binary accuracy: 1.0 if order matches, 0.0 if not.
+
+    Args:
+        agent_timeline: List of timeline events from agent's structured output
+        ground_truth_timeline: List of ground truth timeline events
+
+    Returns:
+        Accuracy score (1.0 or 0.0)
+    """
+    if not agent_timeline:
+        logger.info("No timeline events in agent output")
+        return 0.0
+
+    # Extract event descriptions/names from both timelines
+    gt_sequence = []
+    for event in ground_truth_timeline:
+        # Normalize: lowercase, remove punctuation, collapse whitespace
+        event_text = event.get("event", "").lower().strip()
+        event_text = re.sub(r'[^\w\s]', ' ', event_text)
+        event_text = re.sub(r'\s+', ' ', event_text).strip()
+        if event_text:
+            gt_sequence.append(event_text)
+
+    agent_sequence = []
+    for event in agent_timeline:
+        event_text = event.get("event", "").lower().strip()
+        event_text = re.sub(r'[^\w\s]', ' ', event_text)
+        event_text = re.sub(r'\s+', ' ', event_text).strip()
+        if event_text:
+            agent_sequence.append(event_text)
+
+    # Match agent events to ground truth events
+    matched_indices = []
+    for agent_event in agent_sequence:
+        for gt_idx, gt_event in enumerate(gt_sequence):
+            # Fuzzy match: check if key words overlap
+            agent_words = set(agent_event.split())
+            gt_words = set(gt_event.split())
+            # Require significant overlap (at least 50% of shorter sequence)
+            overlap = len(agent_words & gt_words)
+            min_words = min(len(agent_words), len(gt_words))
+            if min_words > 0 and overlap / min_words >= 0.5:
+                if gt_idx not in matched_indices:
+                    matched_indices.append(gt_idx)
+                    break
+
+    # Check if matched indices are in ascending order (chronological)
+    if len(matched_indices) >= 2:
+        is_sorted = all(matched_indices[i] < matched_indices[i+1]
+                       for i in range(len(matched_indices) - 1))
+        accuracy = 1.0 if is_sorted else 0.0
+        logger.info(f"Structured timeline evaluation: {len(matched_indices)} events matched, "
+                   f"sequence {'correct' if is_sorted else 'incorrect'}")
+    else:
+        # Need at least 2 events to check sequence
+        accuracy = 0.0
+        logger.info(f"Structured timeline evaluation: only {len(matched_indices)} events matched, "
+                   "need at least 2 for sequence check")
+
+    return accuracy
+
+
+def _evaluate_timeline_freeform(
+    output_lower: str,
+    ground_truth_timeline: List[Dict]
+) -> float:
+    """
+    Evaluate timeline sequence using free-form text matching.
+
+    Finds events in agent output and checks if they appear in the correct order.
+    Less accurate than structured evaluation.
+
+    Args:
+        output_lower: Lowercased agent output text
+        ground_truth_timeline: List of ground truth timeline events
+
+    Returns:
+        Accuracy score (1.0 or 0.0)
+    """
+    # Find which events were mentioned and their positions in the output
+    event_positions = []
+
+    for gt_event in ground_truth_timeline:
+        event_desc = gt_event.get("event", "").lower()
+
+        # Extract significant keywords (length > 3)
+        keywords = [word for word in event_desc.split() if len(word) > 3]
+        keywords = [re.sub(r'\W+', '', kw) for kw in keywords if re.sub(r'\W+', '', kw)]
+
+        if not keywords:
+            continue
+
+        # Find keyword positions in output
+        keyword_positions = []
+        for keyword in keywords:
+            pos = output_lower.find(keyword)
+            if pos != -1:
+                keyword_positions.append(pos)
+
+        # Consider event mentioned if at least 2 keywords found
+        # Use earliest keyword position as event position
+        if len(keyword_positions) >= 2:
+            event_positions.append({
+                "event": event_desc,
+                "position": min(keyword_positions),
+                "keywords_found": len(keyword_positions)
+            })
+
+    # Check if events appear in correct chronological order
+    if len(event_positions) >= 2:
+        # Events should already be in correct order from timeline iteration
+        # Check if their positions in output are also in ascending order
+        positions = [ep["position"] for ep in event_positions]
+        is_sorted = all(positions[i] < positions[i+1] for i in range(len(positions) - 1))
+        accuracy = 1.0 if is_sorted else 0.0
+        logger.info(f"Freeform timeline evaluation: {len(event_positions)} events found, "
+                   f"sequence {'correct' if is_sorted else 'incorrect'}")
+    else:
+        # Need at least 2 events to check sequence
+        accuracy = 0.0
+        logger.info(f"Freeform timeline evaluation: only {len(event_positions)} events found, "
+                   "need at least 2 for sequence check")
+
+    return accuracy
 
 
 def calculate_timeline_sequence_accuracy(
@@ -82,64 +372,164 @@ def calculate_timeline_sequence_accuracy(
     ground_truth: Dict
 ) -> Dict[str, Any]:
     """
-    Check if agent mentioned events in the correct chronological sequence.
+    Calculate timeline sequence accuracy.
 
     Measures whether the order of events in agent's output matches the
-    ground truth timeline order.
+    ground truth timeline order. Prefers structured JSON output but falls
+    back to improved keyword matching.
 
     Args:
-        agent_output: Agent's final explanation
+        agent_output: Agent's final explanation (may include JSON)
         ground_truth: Ground truth annotation
 
     Returns:
-        Dict with accuracy, events_in_sequence, events_total
+        Dict with accuracy, events_in_sequence, events_total, method_used
     """
     timeline = ground_truth.get("timeline", [])
 
     if not timeline:
-        return {"accuracy": 0.0, "events_in_sequence": 0, "events_total": 0}
+        return {
+            "accuracy": 0.0,
+            "events_in_sequence": 0,
+            "events_total": 0,
+            "method_used": "none"
+        }
 
-    output_lower = agent_output.lower()
+    # Try to parse structured output first
+    structured_data, narrative = parse_structured_output(agent_output)
 
-    # Find which events were mentioned and their positions
-    event_positions = []
-    for event in timeline:
-        event_desc = event.get("event", "").lower()
-
-        # Try to find the event description using keyword matching
-        # Split event into keywords and check if significant ones appear
-        keywords = [word for word in event_desc.split() if len(word) > 3]
-
-        # Check if enough keywords from this event appear in output
-        if keywords:
-            # Find position of first keyword match as proxy for event position
-            for keyword in keywords:
-                pos = output_lower.find(keyword)
-                if pos != -1:
-                    event_positions.append((event_desc, pos))
-                    break
-
-    # Calculate sequence accuracy
-    events_total = len(timeline)
-    events_found = len(event_positions)
-
-    if events_found >= 2:
-        # Check if found events appear in correct chronological order
-        sorted_positions = sorted(event_positions, key=lambda x: x[1])
-        correct_order = [e[0] for e in event_positions] == [e[0] for e in sorted_positions]
-        accuracy = 1.0 if correct_order else 0.0
-    elif events_found == 1:
-        # Can't determine sequence with only 1 event, but give partial credit for mentioning it
-        accuracy = 0.5
+    if structured_data and "timeline" in structured_data:
+        # Structured evaluation (preferred)
+        accuracy = _evaluate_timeline_structured(
+            structured_data["timeline"],
+            timeline
+        )
+        method = "structured"
     else:
-        # No events mentioned
-        accuracy = 0.0
+        # Free-form text evaluation (fallback)
+        accuracy = _evaluate_timeline_freeform(
+            agent_output.lower(),
+            timeline
+        )
+        method = "freeform"
 
     return {
         "accuracy": accuracy,
-        "events_in_sequence": events_found,
-        "events_total": events_total
+        "events_in_sequence": int(accuracy * len(timeline)),  # Approximate
+        "events_total": len(timeline),
+        "method_used": method
     }
+
+
+def _evaluate_metrics_structured(
+    agent_metrics: Dict[str, float],
+    ground_truth_metrics: Dict[str, float]
+) -> int:
+    """
+    Evaluate metrics extraction using structured JSON output.
+
+    Compares metric values directly with tolerance for rounding.
+
+    Args:
+        agent_metrics: Dict of metrics from agent's structured output
+        ground_truth_metrics: Dict of ground truth metrics
+
+    Returns:
+        Number of ground truth metrics correctly identified
+    """
+    metrics_found = 0
+
+    for gt_name, gt_value in ground_truth_metrics.items():
+        if not isinstance(gt_value, (int, float)):
+            continue
+
+        # Try exact name match first
+        if gt_name in agent_metrics:
+            agent_value = agent_metrics[gt_name]
+            if _values_match(agent_value, gt_value):
+                metrics_found += 1
+                continue
+
+        # Try fuzzy name matching (e.g., "build_time" vs "total_build_time")
+        gt_name_normalized = gt_name.replace("_", " ").lower()
+        for agent_name, agent_value in agent_metrics.items():
+            agent_name_normalized = agent_name.replace("_", " ").lower()
+            # Check if names share significant words
+            gt_words = set(gt_name_normalized.split())
+            agent_words = set(agent_name_normalized.split())
+            overlap = len(gt_words & agent_words)
+            if overlap >= min(len(gt_words), len(agent_words)) * 0.5:
+                if _values_match(agent_value, gt_value):
+                    metrics_found += 1
+                    break
+
+    logger.info(f"Structured metrics evaluation: {metrics_found}/{len(ground_truth_metrics)} metrics found")
+    return metrics_found
+
+
+def _evaluate_metrics_freeform(
+    agent_output: str,
+    ground_truth_metrics: Dict[str, float]
+) -> int:
+    """
+    Evaluate metrics extraction using free-form text matching.
+
+    Searches for metric values in the text with tolerance for rounding.
+
+    Args:
+        agent_output: Full agent output text
+        ground_truth_metrics: Dict of ground truth metrics
+
+    Returns:
+        Number of ground truth metrics likely mentioned
+    """
+    metrics_found = 0
+
+    for metric_name, metric_value in ground_truth_metrics.items():
+        if not isinstance(metric_value, (int, float)):
+            continue
+
+        # Check if the numeric value appears in output
+        # Try multiple representations of the number
+        value_representations = [
+            str(metric_value),  # Exact: 19.84
+            str(round(metric_value, 2)),  # Rounded: 19.84
+            str(round(metric_value, 1)),  # Less precise: 19.8
+            str(int(metric_value)),  # Integer: 19
+        ]
+
+        # For larger numbers, also try without decimals
+        if metric_value > 10:
+            value_representations.append(str(int(round(metric_value))))
+
+        # Check if any representation appears in output
+        if any(val_str in agent_output for val_str in value_representations):
+            metrics_found += 1
+
+    logger.info(f"Freeform metrics evaluation: {metrics_found}/{len(ground_truth_metrics)} metrics found")
+    return metrics_found
+
+
+def _values_match(agent_value: Any, gt_value: float, tolerance: float = 0.1) -> bool:
+    """
+    Check if two numeric values match within tolerance.
+
+    Args:
+        agent_value: Value from agent output
+        gt_value: Ground truth value
+        tolerance: Relative tolerance (default 10%)
+
+    Returns:
+        True if values match within tolerance
+    """
+    try:
+        agent_num = float(agent_value)
+        gt_num = float(gt_value)
+        # Allow 10% relative difference
+        max_diff = abs(gt_num * tolerance)
+        return abs(agent_num - gt_num) <= max_diff
+    except (TypeError, ValueError):
+        return False
 
 
 def calculate_metrics_accuracy(
@@ -147,36 +537,45 @@ def calculate_metrics_accuracy(
     ground_truth: Dict
 ) -> Dict[str, Any]:
     """
-    Check if agent correctly identified key metrics.
+    Calculate metrics extraction accuracy.
+
+    Measures whether the agent correctly identified quantitative metrics.
+    Prefers structured JSON output but falls back to text matching.
 
     Args:
-        agent_output: Agent's final explanation
+        agent_output: Agent's final explanation (may include JSON)
         ground_truth: Ground truth annotation
 
     Returns:
-        Dict with metrics_identified count and accuracy
+        Dict with metrics_found, metrics_total, accuracy, method_used
     """
     gt_metrics = ground_truth.get("metrics", {})
 
     if not gt_metrics:
-        return {"metrics_found": 0, "metrics_total": 0, "accuracy": 0.0}
+        return {
+            "metrics_found": 0,
+            "metrics_total": 0,
+            "accuracy": 0.0,
+            "method_used": "none"
+        }
 
-    output_lower = agent_output.lower()
-    metrics_found = 0
+    # Try to parse structured output first
+    structured_data, narrative = parse_structured_output(agent_output)
 
-    for metric_name, metric_value in gt_metrics.items():
-        # Check if metric value appears in output (with some tolerance)
-        if isinstance(metric_value, (int, float)):
-            # Look for the number (allowing for rounding)
-            if isinstance(metric_value, float):
-                # Check with ±10% tolerance
-                tolerance = metric_value * 0.1
-                value_str = str(int(metric_value)) if metric_value > 10 else str(round(metric_value, 2))
-                if value_str in agent_output or str(metric_value) in agent_output:
-                    metrics_found += 1
-            else:
-                if str(metric_value) in agent_output:
-                    metrics_found += 1
+    if structured_data and "metrics" in structured_data:
+        # Structured evaluation (preferred)
+        metrics_found = _evaluate_metrics_structured(
+            structured_data["metrics"],
+            gt_metrics
+        )
+        method = "structured"
+    else:
+        # Free-form text evaluation (fallback)
+        metrics_found = _evaluate_metrics_freeform(
+            agent_output,
+            gt_metrics
+        )
+        method = "freeform"
 
     total_metrics = len(gt_metrics)
     accuracy = metrics_found / total_metrics if total_metrics > 0 else 0.0
@@ -184,7 +583,8 @@ def calculate_metrics_accuracy(
     return {
         "metrics_found": metrics_found,
         "metrics_total": total_metrics,
-        "accuracy": accuracy
+        "accuracy": accuracy,
+        "method_used": method
     }
 
 
