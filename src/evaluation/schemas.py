@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 class EventDetected(BaseModel):
     """A single event detected by the agent."""
     event_type: str = Field(..., description="Type of event (e.g., 'vm_started', 'instance_spawned')")
-    instance_id: Optional[str] = Field(None, description="Instance UUID if applicable")
     timestamp: Optional[str] = Field(None, description="Timestamp of the event")
     description: str = Field(..., description="Human-readable description of what happened")
     confidence: Optional[Literal["high", "medium", "low"]] = Field(None, description="Confidence level")
@@ -78,7 +77,6 @@ STRUCTURED_OUTPUT_SCHEMA = {
                 "required": ["event_type", "description"],
                 "properties": {
                     "event_type": {"type": "string"},
-                    "instance_id": {"type": "string"},
                     "timestamp": {"type": "string"},
                     "description": {"type": "string"},
                     "confidence": {"enum": ["high", "medium", "low"]},
@@ -126,7 +124,6 @@ EXAMPLE_AGENT_OUTPUT = """
   "events_detected": [
     {
       "event_type": "vm_started",
-      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
       "timestamp": "2017-05-16 00:00:04.500",
       "description": "VM lifecycle event: Started",
       "confidence": "high",
@@ -134,7 +131,6 @@ EXAMPLE_AGENT_OUTPUT = """
     },
     {
       "event_type": "vm_paused",
-      "instance_id": "b9000564-fe1a-409b-b8cc-1e88b294cd1d",
       "timestamp": "2017-05-16 00:00:04.562",
       "description": "VM paused during spawn process",
       "confidence": "high",
@@ -179,7 +175,6 @@ You MUST structure your response in the following format:
   "events_detected": [
     {
       "event_type": "vm_started",  // Use ground truth event types
-      "instance_id": "...",  // UUID if found in logs
       "timestamp": "YYYY-MM-DD HH:MM:SS.mmm",
       "description": "What happened",
       "confidence": "high|medium|low",

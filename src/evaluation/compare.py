@@ -46,12 +46,9 @@ def compare_experiments(
         # Add accuracy metrics if ground truth provided
         if "event_detection" in metrics:
             row.update({
-                "event_recall": metrics["event_detection"]["recall"],
-                "event_precision": metrics["event_detection"]["precision"],
-                "timeline_accuracy": metrics["timeline_accuracy"]["sequence_correct"],
-                "metrics_accuracy": metrics["metrics_accuracy"]["accuracy"],
-                "anomaly_detection": metrics["anomaly_detection"]["detection_rate"],
-                "comprehensiveness": metrics["comprehensiveness_score"],
+                "placeholder": 0.0,
+                # TODO: Add metrics to compare
+                # "event_detection_accuracy": metrics["event_detection"]["accuracy"],
             })
 
         results.append(row)
@@ -91,13 +88,13 @@ def summarize_comparison(df: pd.DataFrame) -> Dict[str, Any]:
         }
 
     # Accuracy stats if available
-    if "comprehensiveness" in df.columns:
-        summary["quality_metrics"] = {
-            "mean_comprehensiveness": float(df["comprehensiveness"].mean()),
-            "mean_event_recall": float(df["event_recall"].mean()),
-            "mean_anomaly_detection": float(df["anomaly_detection"].mean()),
-            "by_workflow": df.groupby("workflow_type")["comprehensiveness"].mean().to_dict()
-        }
+    # if "comprehensiveness" in df.columns:
+    #     summary["quality_metrics"] = {
+    #         "mean_comprehensiveness": float(df["comprehensiveness"].mean()),
+    #         "mean_event_recall": float(df["event_recall"].mean()),
+    #         "mean_anomaly_detection": float(df["anomaly_detection"].mean()),
+    #         "by_workflow": df.groupby("workflow_type")["comprehensiveness"].mean().to_dict()
+    #     }
 
     return summary
 

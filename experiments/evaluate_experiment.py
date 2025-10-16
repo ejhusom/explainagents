@@ -1,5 +1,7 @@
 """
 CLI tool for evaluating experiment results against ground truth.
+
+This script relies on code that is not implemented yet, so it's just a placeholder for now.
 """
 
 import sys
@@ -54,15 +56,7 @@ def main():
         print(f"Token Usage: {metrics['token_usage']['total_tokens']:,}")
         print(f"Output Length: {metrics['output_length_words']} words")
 
-        if "event_detection" in metrics:
-            print("\nAccuracy Metrics:")
-            print(f"  Event Detection Accuracy: {metrics['event_detection']['accuracy']:.2%}")
-
-            print(f"  Timeline Sequence Accuracy: {metrics['timeline_sequence']['accuracy']:.2%}")
-            print(f"  No. events in sequence: {metrics['timeline_sequence']['events_in_sequence']:}")
-            print(f"  Metrics Accuracy: {metrics['metrics_accuracy']['accuracy']:.2%}")
-            print(f"  Anomaly Detection: {metrics['anomaly_detection']['detection_rate']:.2%}")
-            print(f"  Comprehensiveness: {metrics['comprehensiveness_score']:.2%}")
+        # TODO: Print relevant metrics 
 
         if args.output:
             print(f"\n✓ Results saved to: {args.output}")
