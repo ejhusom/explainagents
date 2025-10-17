@@ -40,6 +40,7 @@ class LLMClient:
         messages: List[Dict[str, str]],
         system: Optional[str] = None,
         tools: Optional[List[Dict]] = None,
+        json_schema: Optional[Dict] = None,
         max_tokens: int = 4096,
         temperature: float = 0.0
     ) -> Dict[str, Any]:
@@ -80,6 +81,22 @@ class LLMClient:
                     # Prepend system message to messages list
                     kwargs["messages"] = [{"role": "system", "content": system}] + messages
 
+            # Add structured output if requested
+            if json_schema:
+                kwargs["response_format"] = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "structured_response",
+                        "strict": True,
+                        "schema": json_schema
+                    }
+                }
+                # Note: Cannot use tools with structured output in most APIs
+                if tools:
+                    raise ValueError(
+                        "Cannot use tools with structured output. "
+                        "Structured output is only for final agent response."
+                    )
             # Add tools if provided and model supports them
             if tools and self._supports_tools(model):
                 kwargs["tools"] = tools

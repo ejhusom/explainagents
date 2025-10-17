@@ -83,6 +83,14 @@ def load_config(config_path: str) -> Dict[str, Any]:
             raise ValueError(f"Agent '{agent_name}' missing system_prompt")
         if "tools" not in agent_config:
             raise ValueError(f"Agent '{agent_name}' missing tools list")
+        if "structured_output" in agent_config:
+            so_config = agent_config["structured_output"]
+            if so_config.get("enabled"):
+                schema_name = so_config.get("schema")
+                if not schema_name:
+                    raise ValueError(
+                        f"Agent {agent_name}: structured_output.schema required when enabled"
+                    )
 
     # Set defaults for optional fields
     if "max_iterations" not in config["workflow"]:

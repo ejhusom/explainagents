@@ -12,12 +12,32 @@ from datetime import datetime
 class AgentConfig:
     """Configuration for an agent."""
     name: str
-    model: str
     system_prompt: str
     tools: List[str]
+    
+    # LLM settings (can override global defaults)
+    model: Optional[str] = None  # If None, uses workflow default
+    provider: Optional[str] = None  # If None, uses workflow default
+    base_url: Optional[str] = None  # For custom endpoints
+    api_key: Optional[str] = None  # For agent-specific keys
+    
+    # Generation parameters
     max_tokens: int = 4096
     max_iterations: int = 5
-    temperature: Optional[float] = None  # If None, uses LLM client default
+    temperature: Optional[float] = None
+
+    # Structured output settings
+    structured_output: Optional[Dict[str, Any]] = field(default=None)
+    
+    def get_llm_config(self, defaults: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge agent config with workflow defaults."""
+        return {
+            "model": self.model or defaults.get("model"),
+            "provider": self.provider or defaults.get("provider"),
+            "base_url": self.base_url or defaults.get("base_url"),
+            "api_key": self.api_key or defaults.get("api_key"),
+        }
+
 
 
 class Agent:
@@ -88,6 +108,7 @@ class Agent:
         # Agentic loop: keep calling LLM until no more tool calls
         max_iterations = self.config.max_iterations
         iteration = 0
+        last_response = None
 
         while iteration < max_iterations:
             iteration += 1
@@ -115,14 +136,12 @@ class Agent:
                 "response": response
             })
 
+            # Store this response as the currently last response
+            last_response = response
+
             # If no tool calls, we're done
             if not response["tool_calls"]:
-                return {
-                    "content": response["content"],
-                    "tool_calls": all_tool_calls,
-                    "usage": total_usage,
-                    "history": self.history
-                }
+                break
 
             # Execute tool calls
             # First, add the assistant message with tool calls
@@ -164,9 +183,26 @@ class Agent:
                     "content": result_content
                 })
 
-        # If we hit max iterations, return what we have
+        # If we hit max iterations without a last response
+        if last_response is None:
+            last_response = {
+                "content": "Maximum iterations reached",
+                "tool_calls": [],
+                "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            }
+        
+        # Check if structured output is required
+        if self._requires_structured_output():
+            return self._finalize_with_structured_output(
+                messages=messages,
+                final_response=last_response,
+                all_tool_calls=all_tool_calls,
+                total_usage=total_usage
+            )
+        
+        # Return unstructured
         return {
-            "content": "Maximum iterations reached",
+            "content": final_response["content"],
             "tool_calls": all_tool_calls,
             "usage": total_usage,
             "history": self.history
@@ -219,3 +255,90 @@ class Agent:
 
         # Execute tool
         return tool_func(**args)
+
+    def _requires_structured_output(self) -> bool:
+        """Check if this agent is configured for structured output."""
+        if not self.config.structured_output:
+            return False
+        return self.config.structured_output.get("enabled", False)
+
+    def _finalize_with_structured_output(
+        self,
+        messages: List[Dict],
+        final_response: Dict,
+        all_tool_calls: List,
+        total_usage: Dict
+    ) -> Dict[str, Any]:
+        """
+        Generate structured final output from conversation history.
+        
+        This is called at the end of the agent loop to format the final response
+        according to the specified schema.
+        """
+        schema_name = self.config.structured_output.get("schema")
+        json_schema = self._get_json_schema(schema_name)
+        
+        # Add synthesis instruction
+        synthesis_messages = messages.copy()
+        synthesis_messages.append({
+            "role": "user",
+            "content": "Based on your analysis above, provide your final response in the required structured format."
+        })
+        
+        # Make structured completion call
+        structured_response = self.client.complete(
+            model=self.config.model,
+            messages=synthesis_messages,
+            system=self.config.system_prompt,
+            json_schema=json_schema,
+            max_tokens=self.config.max_tokens,
+            temperature=0.0  # Force deterministic for structured output
+        )
+        
+        # Update usage
+        total_usage["input_tokens"] += structured_response["usage"]["input_tokens"]
+        total_usage["output_tokens"] += structured_response["usage"]["output_tokens"]
+        total_usage["total_tokens"] += structured_response["usage"]["total_tokens"]
+        
+        # Log the synthesis step
+        self.history.append({
+            "timestamp": datetime.now().isoformat(),
+            "iteration": "synthesis",
+            "messages": synthesis_messages,
+            "response": structured_response
+        })
+        
+        # Parse structured data from response
+        try:
+            structured_data = json.loads(structured_response["content"])
+        except json.JSONDecodeError as e:
+            # If parsing fails, include error info
+            structured_data = {
+                "error": f"Failed to parse structured output: {str(e)}",
+                "raw_content": structured_response["content"]
+            }
+        
+        return {
+            "content": structured_response["content"],
+            "structured_data": structured_data,
+            "tool_calls": all_tool_calls,
+            "usage": total_usage,
+            "history": self.history
+        }
+
+    def _get_json_schema(self, schema_name: str) -> Dict:
+        """Convert Pydantic model name to JSON schema."""
+        from evaluation.schemas import StructuredAnalysis, AnomalyDetectionOutput
+        
+        schema_map = {
+            "StructuredAnalysis": StructuredAnalysis,
+            "AnomalyDetectionOutput": AnomalyDetectionOutput,
+        }
+        
+        if schema_name not in schema_map:
+            raise ValueError(
+                f"Unknown schema: {schema_name}. "
+                f"Available schemas: {list(schema_map.keys())}"
+            )
+        
+        return schema_map[schema_name].model_json_schema()

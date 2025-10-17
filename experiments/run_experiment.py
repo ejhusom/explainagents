@@ -17,6 +17,7 @@ from core.config_loader import load_config, validate_data_sources
 from core.llm_client import LLMClient
 from core.agent import Agent, AgentConfig
 from core.orchestrator import SingleAgentWorkflow, SequentialWorkflow, HierarchicalWorkflow
+from data.log_search import initialize_search, get_search_stats
 from tools.tool_registry import get_tools_for_agent
 from tools import search_tools
 
@@ -58,6 +59,19 @@ def main():
         print(f"✗ Error validating data sources: {e}")
         sys.exit(1)
 
+    # print("\nInitializing search system...")
+    # log_sources = [config["data"]["log_source"]]
+    
+    # try:
+    #     num_logs = initialize_search(log_sources, db_path=":memory:")
+    #     print(f"✓ Indexed {num_logs:,} log entries")
+        
+    #     stats = get_search_stats()
+    #     print(f"  Sources: {', '.join(stats['sources'])}")
+    # except Exception as e:
+    #     print(f"✗ Error initializing search: {e}")
+    #     sys.exit(1)
+
     # Initialize LLM client
     print("\nInitializing LLM client...")
     try:
@@ -71,74 +85,63 @@ def main():
         print(f"✗ Error initializing LLM client: {e}")
         sys.exit(1)
 
-    # TODO: Data loading should be handled in a more elegant way, possibly within the workflow or agents themselves.
-    # # Load and index log data
-    # print("\nLoading and indexing log data...")
-    # log_source = config["data"]["log_source"]
-    # try:
-    #     # Detect log format and parse
-    #     if log_source.endswith('.csv'):
-    #         print("  Detected CSV format")
-    #         documents = parse_csv(log_source)
-    #     elif log_source.endswith('.json') or log_source.endswith('.jsonl'):
-    #         print("  Detected JSON format")
-    #         documents = parse_json(log_source)
-    #     else:
-    #         # Default to text log format
-    #         print("  Detected text log format")
-    #         documents = parse_text_log(log_source)
-
-    #     print(f"  ✓ Parsed {len(documents)} log entries")
-
-    #     # Create indexer and index documents
-    #     index_method = config["data"].get("index_method", "simple")
-    #     indexer = LogIndexer(method=index_method)
-    #     indexer.index(documents)
-    #     print(f"  ✓ Created {index_method} index with {indexer.num_documents} documents")
-
-    #     # Create retriever with chunking
-    #     chunk_size = config["data"].get("chunk_size", 1000)
-    #     chunk_overlap = config["data"].get("chunk_overlap", 100)
-    #     retriever = Retriever(indexer, chunk_size=chunk_size, overlap=chunk_overlap)
-    #     print(f"  ✓ Created retriever with chunk_size={chunk_size}, overlap={chunk_overlap}")
-    #     print(f"  ✓ Split into {len(retriever.chunks)} chunks")
-
-    #     # Set retriever in search_tools module
-    #     search_tools.set_retriever(retriever)
-    #     print(f"✓ Data layer initialized for: {log_source}")
-
-    # except Exception as e:
-    #     print(f"✗ Error loading and indexing logs: {e}")
-    #     import traceback
-    #     traceback.print_exc()
-    #     sys.exit(1)
+    # Build LLM defaults for agents
+    llm_defaults = {
+        "model": config["llm"]["model"],
+        "provider": config["llm"]["provider"],
+        "api_key": config["llm"].get("api_key"),
+        "base_url": config["llm"].get("base_url"),
+    }
 
     # Initialize agents
     print("\nInitializing agents...")
     agents = {}
-    for agent_name, agent_config in config["agents"].items():
+    for agent_name, agent_cfg_dict in config["agents"].items():
         try:
             # Get tools for this agent
-            tool_registry = get_tools_for_agent(agent_config["tools"])
+            tool_registry = get_tools_for_agent(agent_cfg_dict["tools"])
 
             # Create agent config
             agent_cfg = AgentConfig(
                 name=agent_name,
-                model=config["llm"]["model"],
-                system_prompt=agent_config["system_prompt"],
-                tools=agent_config["tools"],
-                max_iterations=agent_config.get("max_iterations", 5),
-                max_tokens=agent_config.get("max_tokens", 4096),
-                temperature=agent_config.get("temperature")
+                system_prompt=agent_cfg_dict["system_prompt"],
+                tools=agent_cfg_dict["tools"],
+                # Optional overrides
+                model=agent_cfg_dict.get("model"),
+                provider=agent_cfg_dict.get("provider"),
+                base_url=agent_cfg_dict.get("base_url"),
+                api_key=agent_cfg_dict.get("api_key"),
+                max_iterations=agent_cfg_dict.get("max_iterations", 5),
+                max_tokens=agent_cfg_dict.get("max_tokens", 4096),
+                temperature=agent_cfg_dict.get("temperature"),
+                structured_output=agent_cfg_dict.get("structured_output"),
             )
+
+             # If agent specifies different provider, create dedicated client
+            if (agent_cfg.provider and agent_cfg.provider != llm_defaults["provider"]) or \
+               (agent_cfg.model and agent_cfg.model != llm_defaults["model"]):
+                agent_llm_client = LLMClient(
+                    provider=agent_cfg.provider,
+                    api_key=llm_defaults.get("api_key"),  # Could also support per-agent keys
+                    base_url=agent_cfg.base_url or llm_defaults.get("base_url")
+                )
+                print(f"✓ Agent '{agent_name}' using dedicated {agent_cfg.provider} client with model {agent_cfg.model}")
+            else:
+                agent_llm_client = llm_client  # Use shared client
+        
+            # Use agent's model or fallback to global
+            agent_model = agent_cfg.model or llm_defaults["model"]
+            
+            # Update config with resolved model (so Agent.run() uses correct model)
+            agent_cfg.model = agent_model
 
             # Create agent
             agent = Agent(agent_cfg, llm_client, tool_registry)
             agents[agent_name] = agent
-            print(f"  ✓ Agent '{agent_name}' initialized with tools: {agent_config['tools']}")
+            print(f"✓ Agent '{agent_name}' initialized with tools: {agent_cfg_dict['tools']}")
 
         except Exception as e:
-            print(f"  ✗ Error initializing agent '{agent_name}': {e}")
+            print(f"✗ Error initializing agent '{agent_name}': {e}")
             sys.exit(1)
 
     # Create workflow

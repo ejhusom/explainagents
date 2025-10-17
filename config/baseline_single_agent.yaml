@@ -5,10 +5,11 @@ experiment:
   timestamp: null  # Auto-generated if null
 
 llm:
-  provider: "openai"  # "ollama, "openai", "anthropic"
-  model: "gpt-4o-mini"
+  # provider: "openai"  # "ollama, "openai", "anthropic"
+  # model: "gpt-4o-mini"
+  provider: "ollama"  # "ollama, "openai", "anthropic"
   # model: "gemma3:270m"
-  # model: "gpt-oss:latest"
+  model: "gpt-oss:latest"
   # model: "claude-sonnet-4-20250514"
   temperature: 1  # 0.0 for reproducibility, higher for creativity
 
@@ -16,6 +17,9 @@ workflow:
   type: "single_agent"
   agent_sequence: ["main"]  # Order of agent execution
   max_total_iterations: 10  # Maximum iterations for multi-agent workflows
+  final_output_structured:
+    enabled: true
+    schema_dict: {}
 
 agents:
   main:
@@ -63,10 +67,17 @@ agents:
       The JSON MUST be valid and parseable. Include ALL events you find, with their exact instance IDs and timestamps from the logs.
     tools:
       - read_file
-      - search_logs
-    max_tokens: 4096
+      # - search_logs
+    max_tokens: 65536
     max_iterations: 10
     temperature: null  # Uses llm.temperature if null, can override per-agent
+    provider: "ollama"  # Uses llm.provider if null
+    model: "gemma3:270m"  # Uses llm.model if null
+    api_key: null  # Uses llm.api_key if null
+    base_url: null  # Uses llm.base_url if null
+    # structured_output:
+    #   enabled: true
+    #   schema: "AnomalyDetectionOutput"
 
 data:
   # log_source: "data/logs/openstack-medium/openstack_200.log"

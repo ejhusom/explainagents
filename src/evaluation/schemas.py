@@ -7,6 +7,28 @@ Defines the expected structure for agent responses to enable automated evaluatio
 from typing import Dict, List, Optional, Any, Literal
 from pydantic import BaseModel, Field
 
+class Anomaly(BaseModel):
+    """A detected anomaly."""
+    type: Literal["error", "warning", "performance", "security"]
+    severity: Literal["low", "medium", "high", "critical"]
+    description: str
+    timestamp: Optional[str] = None
+    log_line: Optional[int] = None
+    evidence: Optional[str] = None
+
+
+class AnomalyDetectionOutput(BaseModel):
+    """Structured output for anomaly detection tasks."""
+    anomalies: List[Anomaly] = Field(
+        default_factory=list,
+        description="List of detected anomalies"
+    )
+    total_log_entries_analyzed: int = Field(
+        description="Total number of log entries processed"
+    )
+    analysis_summary: str = Field(
+        description="Brief summary of findings"
+    )
 
 class EventDetected(BaseModel):
     """A single event detected by the agent."""
