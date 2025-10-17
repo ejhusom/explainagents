@@ -10,7 +10,8 @@ llm:
   # provider: "ollama"  # "ollama, "openai", "anthropic"
   # model: "gemma3:270m"
   # model: "gpt-oss:latest"
-  # model: "claude-sonnet-4-20250514"
+  provider: "anthropic"
+  model: "claude-sonnet-4-20250514"
   temperature: 1  # 0.0 for reproducibility, higher for creativity
 
 workflow:
@@ -18,8 +19,8 @@ workflow:
   agent_sequence: ["main"]  # Order of agent execution
   max_total_iterations: 10  # Maximum iterations for multi-agent workflows
   final_output_structured:
-    enabled: true
-    schema_dict: {}
+    enabled: false
+    schema: null
 
 agents:
   main:
@@ -71,8 +72,8 @@ agents:
     max_tokens: 16384
     max_iterations: 10
     temperature: null  # Uses llm.temperature if null, can override per-agent
-    # provider: "ollama"  # Uses llm.provider if null
-    # model: "gemma3:270m"  # Uses llm.model if null
+    provider: "ollama"  # Uses llm.provider if null
+    model: "qwen3:4b-instruct"  # Uses llm.model if null
     api_key: null  # Uses llm.api_key if null
     base_url: null  # Uses llm.base_url if null
     structured_output:

@@ -279,9 +279,6 @@ class Agent:
         schemas = importlib.import_module("evaluation.schemas")
         schema = getattr(schemas, self.config.structured_output.get("schema"))
 
-        # schema_name = self.config.structured_output.get("schema")
-        # json_schema = self._get_json_schema(schema_name)
-        
         # Add synthesis instruction
         synthesis_messages = messages.copy()
         synthesis_messages.append({

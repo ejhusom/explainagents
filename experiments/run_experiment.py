@@ -137,7 +137,7 @@ def main():
             agent_cfg.model = agent_model
 
             # Create agent
-            agent = Agent(agent_cfg, llm_client, tool_registry)
+            agent = Agent(agent_cfg, agent_llm_client, tool_registry)
             agents[agent_name] = agent
             print(f"✓ Agent '{agent_name}' initialized with tools: {agent_cfg_dict['tools']}")
 
