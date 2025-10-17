@@ -1,96 +1,114 @@
 """
-Search tools for log analysis.
-Uses the data layer (Retriever, LogIndexer) for efficient search and context retrieval.
+Updated search tools for agents using SQLite FTS5 backend.
 """
 
-from typing import List, Optional
+from typing import List, Dict, Any
 
 
-# Global retriever for this session
-_retriever: Optional['Retriever'] = None
+# Import from data layer
+try:
+    from data.log_search import search_logs as _search_logs
+    from data.log_search import get_log_context as _get_context
+    from data.log_search import get_log_by_id as _get_by_id
+except ImportError:
+    # Fallback for development
+    _search_logs = None
+    _get_context = None
+    _get_by_id = None
 
 
-def set_retriever(retriever) -> None:
+def search_logs(query: str, limit: int = 20, level: str = None) -> str:
     """
-    Set the retriever instance to use for search operations.
-    This should be called during experiment initialization.
-
+    Search logs for entries matching query.
+    
+    Uses full-text search with SQLite FTS5. Supports:
+    - Keywords: "error database connection"
+    - Phrases: '"connection timeout"'
+    - Boolean: "error AND (database OR network)"
+    - Wildcards: "connec*"
+    
     Args:
-        retriever: Retriever instance from data layer
-    """
-    global _retriever
-    _retriever = retriever
-
-
-def search_logs(query: str, k: int = 10, source: str = None) -> List[str]:
-    """
-    Search logs for entries matching query using the indexer.
-
-    Args:
-        query: Search query (keywords)
-        k: Number of results to return
-        source: Optional specific log source to search (currently unused)
-
+        query: Search query
+        limit: Maximum results to return
+        level: Optional log level filter (ERROR, WARN, INFO, etc.)
+    
     Returns:
-        List of matching log entries formatted as strings
+        Formatted search results as string
     """
-    global _retriever
-
-    if _retriever is None:
-        return ["Error: Log retriever not initialized. Cannot search logs."]
-
+    if _search_logs is None:
+        return "Error: Search system not initialized."
+    
     try:
-        # Use the retriever's search method
-        results = _retriever.search(query, k=k)
-
+        results = _search_logs(query=query, limit=limit, level=level)
+        
         if not results:
-            return [f"No results found for query: {query}"]
-
-        # Format results for display
-        formatted = []
+            return f"No results found for query: {query}"
+        
+        # Format results for agent
+        lines = [f"Found {len(results)} results for '{query}':\n"]
+        
         for r in results:
-            # Include line number if available
-            line_info = f"Line {r.get('line_number', '?')}" if 'line_number' in r else "?"
-            content = r.get('text') or r.get('raw_text', '')
-            score = r.get('score', 0)
-
-            formatted.append(f"[{line_info}, Score: {score:.2f}] {content}")
-
-        return formatted
-
+            timestamp = r.get('timestamp', '?')
+            level_str = r.get('level', '?')
+            component = r.get('component', '?')
+            line_num = r.get('line_number', '?')
+            log_id = r.get('id')
+            raw_text = r.get('raw_text', '')
+            
+            # Keep it concise
+            lines.append(
+                f"[ID:{log_id} Line:{line_num}] {timestamp} {level_str} {component}: "
+                f"{raw_text[:150]}{'...' if len(raw_text) > 150 else ''}"
+            )
+        
+        return "\n".join(lines)
+    
     except Exception as e:
-        return [f"Error during search: {str(e)}"]
+        return f"Search error: {str(e)}"
 
 
-def get_log_context(entry_id: str, window: int = 2) -> str:
+def get_log_context(log_id: str, window: int = 5) -> str:
     """
-    Get context around a log entry using document ID.
-
+    Get context lines around a specific log entry.
+    
     Args:
-        entry_id: Document ID (integer) or line number
-        window: Number of lines before/after to include
-
+        log_id: Log entry ID (from search results)
+        window: Number of lines before and after
+    
     Returns:
-        Context window as string
+        Context window as formatted string
     """
-    global _retriever
-
-    if _retriever is None:
-        return "Error: Log retriever not initialized. Cannot get context."
-
+    if _get_context is None:
+        return "Error: Search system not initialized."
+    
     try:
-        # Parse entry_id - should be a document ID (integer)
-        doc_id = int(entry_id)
-
-        # Use retriever's context window method
-        context = _retriever.get_context_window(doc_id, window=window)
-
-        return context
-
+        log_id_int = int(log_id)
+        results = _get_context(log_id_int, before=window, after=window)
+        
+        if not results:
+            return f"No context found for log ID: {log_id}"
+        
+        lines = [f"Context for log ID {log_id} (±{window} lines):\n"]
+        
+        target_line = None
+        for r in results:
+            if r['id'] == log_id_int:
+                target_line = r['line_number']
+        
+        for r in results:
+            marker = ">>>" if r['id'] == log_id_int else "   "
+            timestamp = r.get('timestamp', '?')
+            level_str = r.get('level', '?')
+            raw_text = r.get('raw_text', '')
+            
+            lines.append(f"{marker} [{r['line_number']}] {timestamp} {level_str}: {raw_text}")
+        
+        return "\n".join(lines)
+    
     except ValueError:
-        return f"Invalid entry_id format. Expected integer document ID, got: {entry_id}"
+        return f"Invalid log_id format. Expected integer, got: {log_id}"
     except Exception as e:
-        return f"Error getting context: {str(e)}"
+        return f"Context retrieval error: {str(e)}"
 
 
 # Tool schemas for LLM function calling
@@ -99,22 +117,32 @@ SEARCH_TOOLS_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "search_logs",
-            "description": "Search log entries for keywords or patterns. Returns matching log lines with relevance scores. Use keywords that would appear in the logs you're looking for.",
+            "description": (
+                "Search log entries using keywords. Returns matching entries with IDs. "
+                "Supports phrases ('\"exact phrase\"'), boolean operators (AND, OR, NOT), "
+                "and wildcards (prefix*). Use specific keywords that would appear in logs."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Search query with keywords to find in logs (space-separated)"
+                        "description": (
+                            "Search query with keywords. Examples: 'error database', "
+                            "'\"connection timeout\"', 'error AND database'"
+                        )
                     },
-                    "k": {
+                    "limit": {
                         "type": "integer",
-                        "description": "Number of results to return (default: 10)",
-                        "default": 10
+                        "description": "Maximum results to return (default: 20)",
+                        "default": 20,
+                        "minimum": 1,
+                        "maximum": 100
                     },
-                    "source": {
+                    "level": {
                         "type": "string",
-                        "description": "Optional: specific log file to search (currently unused)"
+                        "description": "Filter by log level (ERROR, WARN, INFO, DEBUG, etc.)",
+                        "enum": ["ERROR", "WARN", "WARNING", "INFO", "DEBUG", "TRACE"]
                     }
                 },
                 "required": ["query"]
@@ -125,21 +153,26 @@ SEARCH_TOOLS_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "get_log_context",
-            "description": "Get context lines around a specific log entry. The entry_id is shown in the search results line information (e.g., 'Line 42' means entry_id is 42).",
+            "description": (
+                "Get lines before and after a specific log entry. "
+                "Use the log ID from search results (shown as 'ID:123' in results)."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "entry_id": {
+                    "log_id": {
                         "type": "string",
-                        "description": "Document ID (integer) from search results"
+                        "description": "Log entry ID from search results"
                     },
                     "window": {
                         "type": "integer",
-                        "description": "Number of lines before/after to include (default: 2)",
-                        "default": 2
+                        "description": "Number of lines before and after to include (default: 5)",
+                        "default": 5,
+                        "minimum": 1,
+                        "maximum": 50
                     }
                 },
-                "required": ["entry_id"]
+                "required": ["log_id"]
             }
         }
     }

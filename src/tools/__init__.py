@@ -1,7 +1,11 @@
-"""Tools for agent function calling."""
+"""
+Initialization for the tools module.
+
+This module provides various tools for file operations, search capabilities, and tool registry management.
+"""
 
 from .file_tools import read_file, list_files
-from .search_tools import search_logs, get_log_context, set_retriever
+from .search_tools import search_logs, get_log_context
 from .tool_registry import get_tool_registry, get_tools_for_agent
 
 __all__ = [
@@ -9,7 +13,6 @@ __all__ = [
     "list_files",
     "search_logs",
     "get_log_context",
-    "set_retriever",
     "get_tool_registry",
-    "get_tools_for_agent"
+    "get_tools_for_agent",
 ]

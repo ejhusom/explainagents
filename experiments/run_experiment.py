@@ -59,18 +59,19 @@ def main():
         print(f"✗ Error validating data sources: {e}")
         sys.exit(1)
 
-    # print("\nInitializing search system...")
-    # log_sources = [config["data"]["log_source"]]
+    # Initialize log search
+    print("\nInitializing search system...")
+    log_sources = [config["data"]["log_source"]]
     
-    # try:
-    #     num_logs = initialize_search(log_sources, db_path=":memory:")
-    #     print(f"✓ Indexed {num_logs:,} log entries")
+    try:
+        num_logs = initialize_search(log_sources, db_path=":memory:")
+        print(f"✓ Indexed {num_logs:,} log entries")
         
-    #     stats = get_search_stats()
-    #     print(f"  Sources: {', '.join(stats['sources'])}")
-    # except Exception as e:
-    #     print(f"✗ Error initializing search: {e}")
-    #     sys.exit(1)
+        stats = get_search_stats()
+        print(f"  Sources: {', '.join(stats['sources'])}")
+    except Exception as e:
+        print(f"✗ Error initializing search: {e}")
+        sys.exit(1)
 
     # Initialize LLM client
     print("\nInitializing LLM client...")
