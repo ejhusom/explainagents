@@ -127,6 +127,7 @@ def main():
                 model=config["llm"]["model"],
                 system_prompt=agent_config["system_prompt"],
                 tools=agent_config["tools"],
+                max_iterations=agent_config.get("max_iterations", 5),
                 max_tokens=agent_config.get("max_tokens", 4096),
                 temperature=agent_config.get("temperature")
             )
@@ -176,6 +177,7 @@ def main():
         print(result["result"])
         print("\n" + "=" * 80)
         print(f"Token usage: {result['usage']}")
+        print(f"Number of steps: {len(result['execution_log'])}")
         print("=" * 80)
 
     except Exception as e:

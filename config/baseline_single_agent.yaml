@@ -65,6 +65,7 @@ agents:
       - read_file
       - search_logs
     max_tokens: 4096
+    max_iterations: 10
     temperature: null  # Uses llm.temperature if null, can override per-agent
 
 data:

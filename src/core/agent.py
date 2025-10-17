@@ -16,6 +16,7 @@ class AgentConfig:
     system_prompt: str
     tools: List[str]
     max_tokens: int = 4096
+    max_iterations: int = 5
     temperature: Optional[float] = None  # If None, uses LLM client default
 
 
@@ -85,7 +86,7 @@ class Agent:
         total_usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
         # Agentic loop: keep calling LLM until no more tool calls
-        max_iterations = 10
+        max_iterations = self.config.max_iterations
         iteration = 0
 
         while iteration < max_iterations:
