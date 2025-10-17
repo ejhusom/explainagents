@@ -5,11 +5,11 @@ experiment:
   timestamp: null  # Auto-generated if null
 
 llm:
-  # provider: "openai"  # "ollama, "openai", "anthropic"
-  # model: "gpt-4o-mini"
-  provider: "ollama"  # "ollama, "openai", "anthropic"
+  provider: "openai"  # "ollama, "openai", "anthropic"
+  model: "gpt-4o-mini"
+  # provider: "ollama"  # "ollama, "openai", "anthropic"
   # model: "gemma3:270m"
-  model: "gpt-oss:latest"
+  # model: "gpt-oss:latest"
   # model: "claude-sonnet-4-20250514"
   temperature: 1  # 0.0 for reproducibility, higher for creativity
 
@@ -68,16 +68,16 @@ agents:
     tools:
       - read_file
       # - search_logs
-    max_tokens: 65536
+    max_tokens: 16384
     max_iterations: 10
     temperature: null  # Uses llm.temperature if null, can override per-agent
-    provider: "ollama"  # Uses llm.provider if null
-    model: "gemma3:270m"  # Uses llm.model if null
+    # provider: "ollama"  # Uses llm.provider if null
+    # model: "gemma3:270m"  # Uses llm.model if null
     api_key: null  # Uses llm.api_key if null
     base_url: null  # Uses llm.base_url if null
-    # structured_output:
-    #   enabled: true
-    #   schema: "AnomalyDetectionOutput"
+    structured_output:
+      enabled: true
+      schema: "AnomalyDetectionOutput"
 
 data:
   # log_source: "data/logs/openstack-medium/openstack_200.log"

@@ -3,10 +3,10 @@ Agent implementation with LLM interaction and tool execution.
 """
 
 from dataclasses import dataclass, field
+import importlib
 from typing import List, Dict, Optional, Callable, Any
 import json
 from datetime import datetime
-
 
 @dataclass
 class AgentConfig:
@@ -108,7 +108,7 @@ class Agent:
         # Agentic loop: keep calling LLM until no more tool calls
         max_iterations = self.config.max_iterations
         iteration = 0
-        last_response = None
+        final_response = None
 
         while iteration < max_iterations:
             iteration += 1
@@ -137,7 +137,7 @@ class Agent:
             })
 
             # Store this response as the currently last response
-            last_response = response
+            final_response = response
 
             # If no tool calls, we're done
             if not response["tool_calls"]:
@@ -184,8 +184,8 @@ class Agent:
                 })
 
         # If we hit max iterations without a last response
-        if last_response is None:
-            last_response = {
+        if final_response is None:
+            final_response = {
                 "content": "Maximum iterations reached",
                 "tool_calls": [],
                 "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
@@ -195,7 +195,7 @@ class Agent:
         if self._requires_structured_output():
             return self._finalize_with_structured_output(
                 messages=messages,
-                final_response=last_response,
+                final_response=final_response,
                 all_tool_calls=all_tool_calls,
                 total_usage=total_usage
             )
@@ -275,8 +275,12 @@ class Agent:
         This is called at the end of the agent loop to format the final response
         according to the specified schema.
         """
-        schema_name = self.config.structured_output.get("schema")
-        json_schema = self._get_json_schema(schema_name)
+
+        schemas = importlib.import_module("evaluation.schemas")
+        schema = getattr(schemas, self.config.structured_output.get("schema"))
+
+        # schema_name = self.config.structured_output.get("schema")
+        # json_schema = self._get_json_schema(schema_name)
         
         # Add synthesis instruction
         synthesis_messages = messages.copy()
@@ -290,7 +294,7 @@ class Agent:
             model=self.config.model,
             messages=synthesis_messages,
             system=self.config.system_prompt,
-            json_schema=json_schema,
+            json_schema=schema,
             max_tokens=self.config.max_tokens,
             temperature=0.0  # Force deterministic for structured output
         )
@@ -326,19 +330,19 @@ class Agent:
             "history": self.history
         }
 
-    def _get_json_schema(self, schema_name: str) -> Dict:
-        """Convert Pydantic model name to JSON schema."""
-        from evaluation.schemas import StructuredAnalysis, AnomalyDetectionOutput
+    # def _get_json_schema(self, schema_name: str) -> Dict:
+    #     """Convert Pydantic model name to JSON schema."""
+    #     from evaluation.schemas import StructuredAnalysis, AnomalyDetectionOutput
         
-        schema_map = {
-            "StructuredAnalysis": StructuredAnalysis,
-            "AnomalyDetectionOutput": AnomalyDetectionOutput,
-        }
+    #     schema_map = {
+    #         "StructuredAnalysis": StructuredAnalysis,
+    #         "AnomalyDetectionOutput": AnomalyDetectionOutput,
+    #     }
         
-        if schema_name not in schema_map:
-            raise ValueError(
-                f"Unknown schema: {schema_name}. "
-                f"Available schemas: {list(schema_map.keys())}"
-            )
+    #     if schema_name not in schema_map:
+    #         raise ValueError(
+    #             f"Unknown schema: {schema_name}. "
+    #             f"Available schemas: {list(schema_map.keys())}"
+    #         )
         
-        return schema_map[schema_name].model_json_schema()
+    #     return schema_map[schema_name].model_json_schema()

@@ -6,7 +6,7 @@ Uses LiteLLM to support Anthropic, OpenAI, Ollama, and others.
 from typing import List, Dict, Optional, Any
 import litellm
 import ollama
-from litellm import completion
+from litellm import completion, get_supported_openai_params, supports_response_schema
 
 
 class LLMClient:
@@ -82,15 +82,16 @@ class LLMClient:
                     kwargs["messages"] = [{"role": "system", "content": system}] + messages
 
             # Add structured output if requested
-            if json_schema:
-                kwargs["response_format"] = {
-                    "type": "json_schema",
-                    "json_schema": {
-                        "name": "structured_response",
-                        "strict": True,
-                        "schema": json_schema
-                    }
-                }
+            if json_schema and self._supports_structured_output(model):
+                kwargs["response_format"] = json_schema
+                # kwargs["response_format"] = {
+                #     "type": "json_schema",
+                #     "json_schema": {
+                #         "name": "structured_response",
+                #         "strict": True,
+                #         "schema": json_schema
+                #     }
+                # }
                 # Note: Cannot use tools with structured output in most APIs
                 if tools:
                     raise ValueError(
@@ -192,4 +193,25 @@ class LLMClient:
                 return True
 
         # Default to False for unknown models
+        return False
+
+    def _supports_structured_output(self, model: str) -> bool:
+        """
+        Check if a model supports structured output via JSON schema.
+
+        Args:
+            model: Model identifier
+
+        Returns:
+            True if model supports structured output
+        """
+
+        if "ollama" in self.provider.lower():
+            # Assume all Ollama models support structured output
+            return True
+        else:
+            params = get_supported_openai_params(model, custom_llm_provider=self.provider)
+            if "response_format" in params:
+                return supports_response_schema(model, custom_llm_provider=self.provider)
+
         return False
