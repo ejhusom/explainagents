@@ -36,7 +36,7 @@ def test_load_valid_config():
         # Check workflow config
         assert config["workflow"]["type"] == "single_agent"
         assert "agent_sequence" in config["workflow"]
-        assert "max_iterations" in config["workflow"]
+        assert "max_total_iterations" in config["workflow"]
 
         # Check agents
         assert "main" in config["agents"]

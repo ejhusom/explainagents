@@ -15,7 +15,7 @@ llm:
 workflow:
   type: "single_agent"
   agent_sequence: ["main"]  # Order of agent execution
-  max_iterations: 10  # Maximum iterations for multi-agent workflows
+  max_total_iterations: 10  # Maximum iterations for multi-agent workflows
 
 agents:
   main:
